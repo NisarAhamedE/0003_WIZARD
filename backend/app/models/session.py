@@ -62,6 +62,7 @@ class SessionResponse(Base):
 
     # Response data
     response_data = Column(JSONB, nullable=False)
+    calculated_price = Column(Numeric(10, 2))
 
     # Timing
     time_spent_seconds = Column(Integer)
