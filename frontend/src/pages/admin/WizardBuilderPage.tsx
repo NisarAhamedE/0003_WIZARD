@@ -21,6 +21,11 @@ import {
   Divider,
   Alert,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -103,6 +108,11 @@ const WizardBuilderPage: React.FC = () => {
 
   const [tagInput, setTagInput] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; wizardId: string | null; wizardName: string }>({
+    open: false,
+    wizardId: null,
+    wizardName: '',
+  });
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -146,6 +156,22 @@ const WizardBuilderPage: React.FC = () => {
     },
     onError: (error: any) => {
       setSnackbar({ open: true, message: error.response?.data?.detail || 'Failed to update wizard', severity: 'error' });
+    },
+  });
+
+  const deleteWizardMutation = useMutation({
+    mutationFn: (wizardId: string) => wizardService.deleteWizard(wizardId),
+    onSuccess: () => {
+      setSnackbar({ open: true, message: 'Wizard deleted successfully!', severity: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['wizards-list'] });
+      setDeleteDialog({ open: false, wizardId: null, wizardName: '' });
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Failed to delete wizard. It may have active sessions.',
+        severity: 'error'
+      });
     },
   });
 
@@ -222,6 +248,20 @@ const WizardBuilderPage: React.FC = () => {
   const handleCreateNew = () => {
     resetForm();
     setShowWizardList(false);
+  };
+
+  const handleDeleteClick = (wizardId: string, wizardName: string) => {
+    setDeleteDialog({ open: true, wizardId, wizardName });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteDialog.wizardId) {
+      deleteWizardMutation.mutate(deleteDialog.wizardId);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ open: false, wizardId: null, wizardName: '' });
   };
 
   const handleAddTag = () => {
@@ -500,22 +540,39 @@ const WizardBuilderPage: React.FC = () => {
                             {w.description?.substring(0, 100) || 'No description'}
                             {w.description?.length > 100 ? '...' : ''}
                           </Typography>
-                          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                             <Chip
                               size="small"
                               label={w.is_published ? 'Published' : 'Draft'}
                               color={w.is_published ? 'success' : 'default'}
                             />
                             <Chip size="small" label={w.difficulty_level || 'easy'} />
+                            <Chip
+                              size="small"
+                              label={`${w.total_sessions || 0} sessions`}
+                              color={w.total_sessions > 0 ? 'primary' : 'default'}
+                            />
                           </Box>
-                          <Button
-                            variant="outlined"
-                            startIcon={<EditIcon />}
-                            fullWidth
-                            onClick={() => loadWizardForEditing(w.id)}
-                          >
-                            Edit Wizard
-                          </Button>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button
+                              variant="outlined"
+                              startIcon={<EditIcon />}
+                              fullWidth
+                              onClick={() => loadWizardForEditing(w.id)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              startIcon={<DeleteIcon />}
+                              onClick={() => handleDeleteClick(w.id, w.name)}
+                              disabled={w.total_sessions > 0}
+                              title={w.total_sessions > 0 ? 'Cannot delete wizard with existing sessions' : 'Delete wizard'}
+                            >
+                              Delete
+                            </Button>
+                          </Box>
                         </CardContent>
                       </Card>
                     </Grid>
@@ -997,6 +1054,38 @@ const WizardBuilderPage: React.FC = () => {
       </Grid>
         </Box>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          Delete Wizard?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            Are you sure you want to delete the wizard <strong>"{deleteDialog.wizardName}"</strong>?
+            <br /><br />
+            This action cannot be undone. All wizard data including steps, options, and dependencies will be permanently deleted.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleteWizardMutation.isPending}
+          >
+            {deleteWizardMutation.isPending ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbar.open}
