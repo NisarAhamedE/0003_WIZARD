@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:18
+    container_name: wizard_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "@dmin123"
+      POSTGRES_DB: wizards
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/seed_data.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wizard_network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wizard_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:@dmin123@db:5432/wizards
+      SECRET_KEY: your-super-secret-key-change-in-production
+      ENVIRONMENT: production
+      DEBUG: "false"
+      CORS_ORIGINS: '["http://localhost:3000", "http://frontend:3000"]'
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - wizard_network
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wizard_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - wizard_network
+
+volumes:
+  postgres_data:
+
+networks:
+  wizard_network:
+    driver: bridge
