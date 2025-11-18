@@ -243,7 +243,7 @@ const WizardPlayerPage: React.FC = () => {
   };
 
   const handleNext = async () => {
-    if (!validateStep() || !sessionId || !currentStep) return;
+    if (!validateStep() || !sessionId || !currentStep || !wizard) return;
 
     // Save responses for current step
     const stepResponses = currentStep.option_sets.map((os) => ({
@@ -262,11 +262,24 @@ const WizardPlayerPage: React.FC = () => {
       // Continue even if save fails for better UX
     }
 
-    if (currentStepIndex < (wizard?.steps.length || 0) - 1) {
-      setCurrentStepIndex(currentStepIndex + 1);
+    if (currentStepIndex < wizard.steps.length - 1) {
+      // Move to next step
+      const nextStepIndex = currentStepIndex + 1;
+      setCurrentStepIndex(nextStepIndex);
       setErrors({});
+
+      // Update session progress
+      const progressPercentage = ((nextStepIndex + 1) / wizard.steps.length) * 100;
+      try {
+        await sessionService.updateSession(sessionId, {
+          current_step_id: wizard.steps[nextStepIndex].id,
+          progress_percentage: Math.round(progressPercentage),
+        } as any);
+      } catch (error) {
+        console.error('Error updating progress:', error);
+      }
     } else {
-      // Complete session
+      // Complete session (last step)
       try {
         await completeSessionMutation.mutateAsync(sessionId);
       } catch (error) {
