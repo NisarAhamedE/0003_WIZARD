@@ -45,6 +45,7 @@ export interface Session {
 export interface SessionListItem {
   id: string;
   wizard_id: string;
+  wizard_name?: string;
   session_name?: string;
   status: SessionStatus;
   progress_percentage: number;

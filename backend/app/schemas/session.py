@@ -79,6 +79,7 @@ class SessionResponse(SessionBase):
 class SessionListResponse(BaseModel):
     id: UUID
     wizard_id: UUID
+    wizard_name: Optional[str] = None  # Add wizard name for display
     session_name: Optional[str] = None
     status: str
     progress_percentage: Decimal

@@ -64,7 +64,7 @@ def get_my_sessions(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get current user's sessions.
+    Get current user's sessions with wizard names.
     """
     sessions = session_crud.get_by_user(
         db,
@@ -73,7 +73,25 @@ def get_my_sessions(
         limit=limit,
         status=status
     )
-    return sessions
+
+    # Add wizard_name to each session
+    result = []
+    for session in sessions:
+        wizard = wizard_crud.get(db, session.wizard_id)
+        session_data = SessionListResponse(
+            id=session.id,
+            wizard_id=session.wizard_id,
+            wizard_name=wizard.name if wizard else None,
+            session_name=session.session_name,
+            status=session.status,
+            progress_percentage=session.progress_percentage,
+            started_at=session.started_at,
+            last_activity_at=session.last_activity_at,
+            completed_at=session.completed_at
+        )
+        result.append(session_data)
+
+    return result
 
 
 @router.get("/{session_id}", response_model=SessionResponse)

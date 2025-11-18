@@ -274,7 +274,14 @@ const SessionsPage: React.FC = () => {
               {sessions?.map((session) => (
                 <TableRow key={session.id} hover>
                   <TableCell>
-                    {session.session_name || 'Unnamed Session'}
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>
+                        {session.session_name || 'Unnamed Session'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {session.wizard_name || 'Unknown Wizard'}
+                      </Typography>
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Chip
