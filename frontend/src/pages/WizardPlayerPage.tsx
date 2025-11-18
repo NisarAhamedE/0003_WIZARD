@@ -446,8 +446,9 @@ const WizardPlayerPage: React.FC = () => {
     // Filter options based on dependencies
     const visibleOptions = optionSet.options.filter(shouldShowOption);
 
-    // If no options are visible, don't render the option set
-    if (visibleOptions.length === 0) {
+    // Only check for empty options on selection types that require options
+    const selectionTypesNeedingOptions = ['single_select', 'multiple_select'];
+    if (selectionTypesNeedingOptions.includes(optionSet.selection_type) && visibleOptions.length === 0) {
       return null;
     }
 
