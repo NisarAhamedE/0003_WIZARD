@@ -213,6 +213,7 @@ class WizardUpdate(BaseModel):
     estimated_time: Optional[int] = None
     difficulty_level: Optional[str] = None
     tags: Optional[List[str]] = None
+    steps: Optional[List["StepCreate"]] = None  # Allow updating steps
 
 
 class WizardResponse(WizardBase):

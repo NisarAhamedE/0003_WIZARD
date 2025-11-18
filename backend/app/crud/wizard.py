@@ -89,17 +89,43 @@ class WizardCRUD:
         return self.get(db, db_wizard.id)
 
     def update(self, db: Session, db_obj: Wizard, obj_in: WizardUpdate) -> Wizard:
-        """Update wizard"""
-        update_data = obj_in.model_dump(exclude_unset=True)
+        """Update wizard with nested steps, option_sets, and options"""
+        update_data = obj_in.model_dump(exclude_unset=True, exclude={"steps"})
 
+        # Update wizard basic fields
         for field in update_data:
             setattr(db_obj, field, update_data[field])
+
+        # Handle steps update if provided
+        if obj_in.steps is not None:
+            # Delete existing steps (CASCADE will handle option_sets and options)
+            db.query(Step).filter(Step.wizard_id == db_obj.id).delete()
+            db.flush()
+
+            # Create new steps
+            for step_data in obj_in.steps:
+                step_dict = step_data.model_dump(exclude={"option_sets"})
+                db_step = Step(**step_dict, wizard_id=db_obj.id)
+                db.add(db_step)
+                db.flush()
+
+                # Create option sets
+                for option_set_data in step_data.option_sets:
+                    option_set_dict = option_set_data.model_dump(exclude={"options"})
+                    db_option_set = OptionSet(**option_set_dict, step_id=db_step.id)
+                    db.add(db_option_set)
+                    db.flush()
+
+                    # Create options
+                    for option_data in option_set_data.options:
+                        db_option = Option(**option_data.model_dump(), option_set_id=db_option_set.id)
+                        db.add(db_option)
 
         db_obj.updated_at = datetime.utcnow()
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
-        return db_obj
+        return self.get(db, db_obj.id)
 
     def publish(self, db: Session, wizard: Wizard, publish: bool = True) -> Wizard:
         """Publish or unpublish wizard"""
