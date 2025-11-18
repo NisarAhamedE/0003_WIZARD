@@ -209,33 +209,45 @@ def complete_session(
     """
     Mark session as completed.
     """
-    session = session_crud.get(db, session_id)
-    if not session:
+    try:
+        session = session_crud.get(db, session_id)
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found"
+            )
+
+        # Check ownership
+        if session.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to complete this session"
+            )
+
+        if session.status != "in_progress":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Session is not in progress"
+            )
+
+        session = session_crud.complete_session(db, session)
+
+        # Increment wizard completed count
+        wizard = wizard_crud.get(db, session.wizard_id)
+        if wizard:
+            wizard_crud.increment_completed_count(db, wizard)
+
+        return session
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"ERROR in complete_session: {e}")
+        print(traceback.format_exc())
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error completing session: {str(e)}"
         )
-
-    # Check ownership
-    if session.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to complete this session"
-        )
-
-    if session.status != "in_progress":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session is not in progress"
-        )
-
-    session = session_crud.complete_session(db, session)
-
-    # Increment wizard completed count
-    wizard = wizard_crud.get(db, session.wizard_id)
-    wizard_crud.increment_completed_count(db, wizard)
-
-    return session
 
 
 @router.delete("/{session_id}")

@@ -30,6 +30,7 @@ class SessionResponseResponse(BaseModel):
     step_id: UUID
     option_set_id: UUID
     response_data: Dict[str, Any]
+    calculated_price: Optional[float] = None
     time_spent_seconds: Optional[int] = None
     answered_at: datetime
     is_valid: bool
