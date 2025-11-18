@@ -113,12 +113,28 @@ const WizardPlayerPage: React.FC = () => {
 
   const completeSessionMutation = useMutation({
     mutationFn: (id: string) => sessionService.completeSession(id),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('✓ Session completed successfully:', data);
       setIsCompleted(true);
       // Invalidate sessions cache to refresh the list
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       // Show dialog asking if user wants to save as template
       setShowTemplateDialog(true);
+      setSnackbar({
+        open: true,
+        message: 'Wizard completed successfully!',
+        severity: 'success',
+      });
+    },
+    onError: (error: any) => {
+      console.error('✗ Error completing session:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Failed to complete session',
+        severity: 'error',
+      });
+      // Still mark as completed locally for UX
+      setIsCompleted(true);
     },
   });
 
@@ -265,25 +281,31 @@ const WizardPlayerPage: React.FC = () => {
     if (currentStepIndex < wizard.steps.length - 1) {
       // Move to next step
       const nextStepIndex = currentStepIndex + 1;
+      console.log(`→ Moving to step ${nextStepIndex + 1} of ${wizard.steps.length}`);
       setCurrentStepIndex(nextStepIndex);
       setErrors({});
 
       // Update session progress
       const progressPercentage = ((nextStepIndex + 1) / wizard.steps.length) * 100;
+      console.log(`→ Progress: ${Math.round(progressPercentage)}%`);
       try {
         await sessionService.updateSession(sessionId, {
           current_step_id: wizard.steps[nextStepIndex].id,
           progress_percentage: Math.round(progressPercentage),
         } as any);
+        console.log('✓ Progress updated successfully');
       } catch (error) {
-        console.error('Error updating progress:', error);
+        console.error('✗ Error updating progress:', error);
       }
     } else {
       // Complete session (last step)
+      console.log(`→ Last step (${currentStepIndex + 1}/${wizard.steps.length}) - Completing session...`);
+      console.log(`→ Session ID: ${sessionId}`);
       try {
-        await completeSessionMutation.mutateAsync(sessionId);
+        const result = await completeSessionMutation.mutateAsync(sessionId);
+        console.log('✓ Complete session mutation successful:', result);
       } catch (error) {
-        console.error('Error completing session:', error);
+        console.error('✗ Error completing session:', error);
         // Show error to user but still mark as completed locally for UX
         setIsCompleted(true);
       }
