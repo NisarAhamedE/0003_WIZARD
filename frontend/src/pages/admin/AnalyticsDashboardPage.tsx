@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import {
   AutoFixHigh as WizardIcon,
-  PlayCircle as SessionIcon,
+  PlayCircle as RunIcon,
   CheckCircle as CompletedIcon,
   People as UsersIcon,
   Timer as TimeIcon,
@@ -76,8 +76,8 @@ const AnalyticsDashboardPage: React.FC = () => {
     queryFn: () => analyticsService.getWizardPerformance(),
   });
 
-  const { data: recentSessions, isLoading: sessionsLoading } = useQuery({
-    queryKey: ['analytics', 'recent-sessions'],
+  const { data: recentRuns, isLoading: runsLoading } = useQuery({
+    queryKey: ['analytics', 'recent-runs'],
     queryFn: () => analyticsService.getRecentSessions(),
   });
 
@@ -108,9 +108,9 @@ const AnalyticsDashboardPage: React.FC = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Sessions"
+            title="Total Runs"
             value={stats?.total_sessions || 0}
-            icon={<SessionIcon sx={{ fontSize: 40 }} />}
+            icon={<RunIcon sx={{ fontSize: 40 }} />}
             color="info.main"
             subtitle={`${stats?.sessions_this_week || 0} this week`}
           />
@@ -137,7 +137,7 @@ const AnalyticsDashboardPage: React.FC = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            title="Average Session Time"
+            title="Average Run Time"
             value={formatDuration(stats?.average_session_time || 0)}
             icon={<TimeIcon sx={{ fontSize: 40 }} />}
             color="info.main"
@@ -145,7 +145,7 @@ const AnalyticsDashboardPage: React.FC = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            title="Sessions This Week"
+            title="Runs This Week"
             value={stats?.sessions_this_week || 0}
             icon={<TrendIcon sx={{ fontSize: 40 }} />}
             color="success.main"
@@ -169,7 +169,7 @@ const AnalyticsDashboardPage: React.FC = () => {
                     <TableHead>
                       <TableRow>
                         <TableCell>Wizard</TableCell>
-                        <TableCell align="right">Sessions</TableCell>
+                        <TableCell align="right">Runs</TableCell>
                         <TableCell align="right">Completion</TableCell>
                         <TableCell align="right">Avg Time</TableCell>
                       </TableRow>
@@ -209,14 +209,14 @@ const AnalyticsDashboardPage: React.FC = () => {
           </Card>
         </Grid>
 
-        {/* Recent Sessions */}
+        {/* Recent Runs */}
         <Grid item xs={12} md={5}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Recent Sessions
+                Recent Runs
               </Typography>
-              {sessionsLoading ? (
+              {runsLoading ? (
                 <CircularProgress />
               ) : (
                 <TableContainer>
@@ -229,18 +229,18 @@ const AnalyticsDashboardPage: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {recentSessions?.map((session) => (
-                        <TableRow key={session.id}>
-                          <TableCell>{session.wizard_name}</TableCell>
-                          <TableCell>{session.user_name}</TableCell>
+                      {recentRuns?.map((run) => (
+                        <TableRow key={run.id}>
+                          <TableCell>{run.wizard_name}</TableCell>
+                          <TableCell>{run.user_name}</TableCell>
                           <TableCell>
                             <Chip
                               size="small"
-                              label={session.status}
+                              label={run.status}
                               color={
-                                session.status === 'completed'
+                                run.status === 'completed'
                                   ? 'success'
-                                  : session.status === 'in_progress'
+                                  : run.status === 'in_progress'
                                     ? 'info'
                                     : 'default'
                               }
@@ -248,10 +248,10 @@ const AnalyticsDashboardPage: React.FC = () => {
                           </TableCell>
                         </TableRow>
                       ))}
-                      {(!recentSessions || recentSessions.length === 0) && (
+                      {(!recentRuns || recentRuns.length === 0) && (
                         <TableRow>
                           <TableCell colSpan={3} align="center">
-                            No recent sessions
+                            No recent runs
                           </TableCell>
                         </TableRow>
                       )}

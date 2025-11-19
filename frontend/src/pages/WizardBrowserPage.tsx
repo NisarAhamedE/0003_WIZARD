@@ -119,7 +119,7 @@ const WizardBrowserPage: React.FC = () => {
                   </Box>
 
                   <Typography variant="caption" color="text.secondary">
-                    {wizard.completed_sessions} / {wizard.total_sessions} sessions completed
+                    {wizard.completed_sessions} / {wizard.total_sessions} runs completed
                   </Typography>
                 </CardContent>
 

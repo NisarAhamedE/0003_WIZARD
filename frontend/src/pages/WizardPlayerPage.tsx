@@ -930,7 +930,7 @@ const WizardPlayerPage: React.FC = () => {
     );
   }
 
-  // Show session name dialog before starting wizard
+  // Show run name dialog before starting wizard
   if (showSessionNameDialog) {
     return (
       <>
@@ -941,22 +941,22 @@ const WizardPlayerPage: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Start New Session
+                Start New Run
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Please provide a name for this wizard session. This will help you identify it later in your sessions list.
+                Please provide a name for this wizard run. This will help you identify it later in your runs list.
               </Typography>
               <TextField
                 autoFocus
                 fullWidth
-                label="Session Name"
+                label="Run Name"
                 value={sessionName}
                 onChange={(e) => {
                   setSessionName(e.target.value);
                   if (sessionNameError) setSessionNameError('');
                 }}
                 error={!!sessionNameError}
-                helperText={sessionNameError || 'Enter a descriptive name for this session'}
+                helperText={sessionNameError || 'Enter a descriptive name for this run'}
                 placeholder={`${wizard.name} - ${new Date().toLocaleDateString()}`}
                 required
                 sx={{ mb: 3 }}
@@ -970,7 +970,7 @@ const WizardPlayerPage: React.FC = () => {
                   onClick={handleCreateSession}
                   disabled={createSessionMutation.isPending}
                 >
-                  {createSessionMutation.isPending ? 'Creating...' : 'Start Session'}
+                  {createSessionMutation.isPending ? 'Creating...' : 'Start Run'}
                 </Button>
               </Box>
             </CardContent>
