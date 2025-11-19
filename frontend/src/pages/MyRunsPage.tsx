@@ -3,8 +3,6 @@ import {
   Box,
   Container,
   Typography,
-  Tab,
-  Tabs,
   Card,
   CardContent,
   CardActions,
@@ -24,12 +22,10 @@ import {
 } from '@mui/material';
 import {
   DirectionsRun as RunIcon,
-  PlayArrow as ResumeIcon,
-  Visibility as ViewIcon,
+  Edit as EditIcon,
   Delete as DeleteIcon,
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
-  Share as ShareIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { wizardRunService } from '../services';
@@ -37,7 +33,7 @@ import { WizardRun, WizardRunStats } from '../types';
 
 const MyRunsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(0);
+  // Removed tabs - only showing stored runs now
   const [runs, setRuns] = useState<WizardRun[]>([]);
   const [stats, setStats] = useState<WizardRunStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,7 +45,7 @@ const MyRunsPage: React.FC = () => {
   useEffect(() => {
     loadStats();
     loadRuns();
-  }, [activeTab]);
+  }, []);
 
   const loadStats = async () => {
     try {
@@ -65,29 +61,11 @@ const MyRunsPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      let data: WizardRun[];
-
-      switch (activeTab) {
-        case 0: // All Runs
-          const response = await wizardRunService.getWizardRuns({ limit: 50 });
-          data = response.runs;
-          break;
-        case 1: // In Progress
-          data = await wizardRunService.getInProgressRuns();
-          break;
-        case 2: // Completed
-          data = await wizardRunService.getCompletedRuns(0, 50);
-          break;
-        case 3: // Favorites
-          data = await wizardRunService.getFavoriteRuns();
-          break;
-        default:
-          data = [];
-      }
-
+      // Only load stored runs
+      const data = await wizardRunService.getStoredRuns(0, 100);
       setRuns(data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load wizard runs');
+      setError(err.response?.data?.detail || 'Failed to load stored wizard runs');
     } finally {
       setLoading(false);
     }
@@ -104,12 +82,9 @@ const MyRunsPage: React.FC = () => {
     }
   };
 
-  const handleResumeRun = (run: WizardRun) => {
+  const handleEditRun = (run: WizardRun) => {
+    // Navigate to wizard player in edit mode with the stored run
     navigate(`/wizard/${run.wizard_id}?run_id=${run.id}`);
-  };
-
-  const handleViewRun = (run: WizardRun) => {
-    navigate(`/wizard/${run.wizard_id}?run_id=${run.id}&view_only=true`);
   };
 
   const handleDeleteRun = (run: WizardRun) => {
@@ -228,15 +203,10 @@ const MyRunsPage: React.FC = () => {
           </Grid>
         )}
 
-        {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
-            <Tab label="All Runs" />
-            <Tab label="In Progress" />
-            <Tab label="Completed" />
-            <Tab label="Favorites" />
-          </Tabs>
-        </Box>
+        {/* Info text */}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          View and edit your stored wizard runs. Only completed runs that you chose to store are shown here.
+        </Typography>
 
         {/* Error Alert */}
         {error && (
@@ -328,23 +298,14 @@ const MyRunsPage: React.FC = () => {
                   </CardContent>
 
                   <CardActions>
-                    {run.status === 'in_progress' ? (
-                      <Button
-                        size="small"
-                        startIcon={<ResumeIcon />}
-                        onClick={() => handleResumeRun(run)}
-                      >
-                        Resume
-                      </Button>
-                    ) : (
-                      <Button
-                        size="small"
-                        startIcon={<ViewIcon />}
-                        onClick={() => handleViewRun(run)}
-                      >
-                        View
-                      </Button>
-                    )}
+                    <Button
+                      size="small"
+                      startIcon={<EditIcon />}
+                      onClick={() => handleEditRun(run)}
+                      variant="contained"
+                    >
+                      Edit
+                    </Button>
                     <Tooltip title="Delete Run">
                       <IconButton
                         size="small"
@@ -366,10 +327,10 @@ const MyRunsPage: React.FC = () => {
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <RunIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary">
-              No wizard runs found
+              No stored runs yet
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Start a wizard to create your first run
+              Complete a wizard and choose to store it to see your runs here
             </Typography>
             <Button variant="contained" onClick={() => navigate('/wizards')}>
               Browse Wizards
