@@ -1,7 +1,7 @@
 export * from './user.types';
 export * from './wizard.types';
-export * from './session.types';
-export * from './template.types';
+export * from './wizardTemplate.types';
+export * from './wizardRun.types';
 
 // Common API response types
 export interface ApiResponse<T> {

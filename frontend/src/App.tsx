@@ -11,6 +11,9 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import WizardBrowserPage from './pages/WizardBrowserPage';
 import WizardPlayerPage from './pages/WizardPlayerPage';
+import TemplateGalleryPage from './pages/TemplateGalleryPage';
+import MyRunsPage from './pages/MyRunsPage';
+import StoreWizardPage from './pages/StoreWizardPage';
 import WizardBuilderPage from './pages/admin/WizardBuilderPage';
 import AnalyticsDashboardPage from './pages/admin/AnalyticsDashboardPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
@@ -50,6 +53,14 @@ function App() {
           }
         />
         <Route
+          path="/templates"
+          element={
+            <ProtectedRoute>
+              <TemplateGalleryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/wizards"
           element={
             <ProtectedRoute>
@@ -62,6 +73,22 @@ function App() {
           element={
             <ProtectedRoute>
               <WizardPlayerPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/runs"
+          element={
+            <ProtectedRoute>
+              <MyRunsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/store"
+          element={
+            <ProtectedRoute>
+              <StoreWizardPage />
             </ProtectedRoute>
           }
         />
