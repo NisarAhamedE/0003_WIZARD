@@ -83,11 +83,10 @@ const WizardPlayerPage: React.FC = () => {
   });
 
   const createSessionMutation = useMutation({
-    mutationFn: (data: { wizard_id: string; run_name: string }) =>
+    mutationFn: (data: { wizard_id: string; run_name?: string }) =>
       wizardRunService.createWizardRun(data),
     onSuccess: (run) => {
       setSessionId(run.id);
-      setShowSessionNameDialog(false);
     },
     onError: () => {
       setSnackbar({
@@ -193,8 +192,10 @@ const WizardPlayerPage: React.FC = () => {
         // Load existing session from URL
         setSessionId(sessionIdFromUrl);
       } else {
-        // Show dialog for new session
-        setShowSessionNameDialog(true);
+        // Automatically create a new run without asking for a name
+        createSessionMutation.mutate({
+          wizard_id: wizard.id,
+        });
       }
     }
   }, [wizard, sessionIdFromUrl]);
