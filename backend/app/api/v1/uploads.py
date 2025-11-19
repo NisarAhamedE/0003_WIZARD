@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_current_user, get_optional_current_user
-from app.crud.session import session_crud
+from app.crud.wizard_run import wizard_run_crud
 from app.models.user import User
 from app.config import settings
 
@@ -13,43 +13,43 @@ router = APIRouter()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@router.post("/session/{session_id}", status_code=status.HTTP_201_CREATED)
-async def upload_session_file(
-    session_id: UUID,
+@router.post("/run/{run_id}", status_code=status.HTTP_201_CREATED)
+async def upload_run_file(
+    run_id: UUID,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_optional_current_user)
 ):
     """
-    Upload a file for a specific session.
+    Upload a file for a specific wizard run.
     """
-    # Verify session exists
-    session = session_crud.get(db, session_id)
-    if not session:
+    # Verify run exists
+    run = wizard_run_crud.get(db, run_id)
+    if not run:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
+            detail="Wizard run not found"
         )
 
     # Check ownership/access
-    # If session has a user_id, current_user must match
-    if session.user_id:
-        if not current_user or session.user_id != current_user.id:
+    # If run has a user_id, current_user must match
+    if run.user_id:
+        if not current_user or run.user_id != current_user.id:
              raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to upload to this session"
+                detail="Not authorized to upload to this run"
             )
-    
-    # Create session-specific directory
-    session_upload_dir = os.path.join(UPLOAD_DIR, str(session_id))
-    os.makedirs(session_upload_dir, exist_ok=True)
+
+    # Create run-specific directory
+    run_upload_dir = os.path.join(UPLOAD_DIR, str(run_id))
+    os.makedirs(run_upload_dir, exist_ok=True)
 
     # Generate safe filename
     # In a real app, we might want to uuid the filename to prevent collisions/overwrites
     # For now, we'll keep original name but maybe prepend timestamp if needed
     # or just overwrite if same name is uploaded
-    file_path = os.path.join(session_upload_dir, file.filename)
-    
+    file_path = os.path.join(run_upload_dir, file.filename)
+
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -63,6 +63,6 @@ async def upload_session_file(
 
     # Return the relative path or URL
     # Assuming we mount 'uploads' at /uploads
-    file_url = f"/uploads/{session_id}/{file.filename}"
-    
+    file_url = f"/uploads/{run_id}/{file.filename}"
+
     return {"filename": file.filename, "url": file_url}
