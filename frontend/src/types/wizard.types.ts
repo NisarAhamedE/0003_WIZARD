@@ -122,6 +122,7 @@ export interface WizardListItem {
   icon?: string;
   cover_image?: string;
   is_published: boolean;
+  require_login: boolean;
   estimated_time?: number;
   difficulty_level?: string;
   tags: string[];

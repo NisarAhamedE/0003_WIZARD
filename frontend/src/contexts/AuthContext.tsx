@@ -52,13 +52,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (data: LoginRequest) => {
     setIsLoading(true);
     try {
+      console.log('Attempting login for:', data.username);
       const tokens = await authService.login(data);
+      console.log('Login successful, tokens received');
       authService.setTokens(tokens);
       setToken(tokens.access_token);
       setRefreshToken(tokens.refresh_token);
 
+      console.log('Fetching current user...');
       const currentUser = await authService.getCurrentUser();
+      console.log('Current user fetched:', currentUser.username);
       setUser(currentUser);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a Multi-Wizard Platform that enables administrators to create, configure, and manage step-by-step wizards. Users can complete wizards, save progress, create templates, and replay sessions.
+This is a Multi-Wizard Platform that enables administrators to create, configure, and manage step-by-step wizards through a complete lifecycle system. Users can browse pre-built templates, clone and customize wizards, execute wizard runs, and store completed runs for future reference.
 
 ## Technology Stack
 
@@ -99,16 +99,47 @@ Wizard
 
 ### User Roles
 1. **Super Admin**: Full system access, user management
-2. **Admin**: Wizard management, limited analytics
-3. **User**: Complete wizards, manage personal sessions/templates
+2. **Admin**: Wizard management, template creation, analytics
+3. **User**: Browse templates, execute wizards, store runs
 
-### Session Flow
-1. User starts wizard session
-2. Navigates through steps
-3. Makes selections in option sets
-4. Saves progress (auto-save or manual)
-5. Completes or abandons session
-6. Optionally creates template from completed session
+### Wizard Lifecycle System
+
+The platform implements a complete 5-component lifecycle:
+
+#### 1. Template Gallery (`/templates`)
+- Browse pre-built wizard templates
+- Filter by category, difficulty level
+- Search templates
+- View ratings and statistics
+- Clone templates to Wizard Builder
+
+#### 2. Wizard Builder (`/admin/wizard-builder`)
+- Create new wizards from scratch
+- Clone and customize templates
+- Configure steps, option sets, options
+- Set up conditional dependencies
+- Publish wizards for users
+
+#### 3. Run Wizard (`/wizards`)
+- Execute published wizards
+- Anonymous or authenticated runs
+- Auto-save progress
+- File uploads support
+- Step-by-step navigation
+
+#### 4. My Runs (`/runs`)
+- Track in-progress wizard runs
+- View completed runs
+- Resume incomplete runs
+- Mark runs as favorites
+- Delete unwanted runs
+
+#### 5. Store Wizard (`/store`)
+- Repository of saved wizard runs
+- Share runs via secure links
+- Compare multiple runs
+- Export run data
+- Access favorites collection
 
 ## Common Tasks
 
@@ -195,6 +226,56 @@ npm run format
 
 ## Current Implementation Status
 
+### Wizard Lifecycle System (v1.0)
+
+**Status**: Backend 100% Complete, Frontend 85% Complete
+
+#### Backend Implementation ✅
+
+**Database Schema** (8 new tables):
+- `wizard_templates` - Template storage with JSONB wizard structure
+- `wizard_template_ratings` - User ratings and reviews
+- `wizard_runs` - Wizard execution tracking
+- `wizard_run_step_responses` - Step completion data
+- `wizard_run_option_set_responses` - User selections (JSONB)
+- `wizard_run_file_uploads` - Uploaded file references
+- `wizard_run_shares` - Share links with access control
+- `wizard_run_comparisons` - Multi-run comparison data
+
+**Models** (8 SQLAlchemy models):
+- Located in `backend/app/models/wizard_template.py` and `wizard_run.py`
+- Proper relationships and cascade deletes
+- Field aliasing for SQLAlchemy reserved attributes (`metadata` → `run_metadata`)
+
+**Schemas** (37 Pydantic schemas):
+- Located in `backend/app/schemas/wizard_template.py` and `wizard_run.py`
+- Full validation with field aliasing for API responses
+- Proper serialization_alias to map `run_metadata` → `metadata` in JSON
+
+**CRUD Operations** (8 CRUD classes):
+- Located in `backend/app/crud/wizard_template.py` and `wizard_run.py`
+- 60+ methods for complete lifecycle management
+- Advanced queries (popular templates, top-rated, stored runs, etc.)
+
+**API Endpoints** (38 REST endpoints):
+- `/api/v1/wizard-templates` - 14 endpoints for template management
+- `/api/v1/wizard-runs` - 24 endpoints for run execution and storage
+- All endpoints operational and tested
+
+#### Frontend Implementation ⚠️
+
+**Completed**:
+- ✅ Navigation menu updated with lifecycle items
+- ✅ Icons imported for Template Gallery, My Runs, Store
+- ✅ Routes configured in MainLayout
+
+**Pending**:
+- ⚠️ Template Gallery Page (`/templates`) - Needs page component
+- ⚠️ My Runs Page (`/runs`) - Needs page component
+- ⚠️ Store Wizard Page (`/store`) - Needs page component
+- ⚠️ Frontend services (`wizardTemplate.service.ts`, `wizardRun.service.ts`)
+- ⚠️ TypeScript types (`wizardTemplate.types.ts`, `wizardRun.types.ts`)
+
 ### Completed Features
 
 #### All 12 Selection Types
@@ -235,6 +316,34 @@ Four dependency types are fully implemented:
 **Backend:**
 - `backend/app/schemas/wizard.py` - Validation regex for all 12 selection types
 - `backend/app/api/v1/wizards.py` - Dependency endpoints
+
+### Important Notes
+
+**SQLAlchemy Reserved Attributes**:
+- The `metadata` field in database tables conflicts with SQLAlchemy's reserved `Base.metadata`
+- Solution: Use column aliasing in models:
+  ```python
+  run_metadata = Column("metadata", JSONB)  # DB column: metadata, Model attr: run_metadata
+  ```
+- Pydantic schemas map back to `metadata` in API responses using `serialization_alias`
+
+**Anonymous Wizard Runs**:
+- Wizard runs support anonymous execution (`user_id` nullable)
+- Use `get_optional_current_user` dependency for endpoints supporting anonymous access
+- Share links allow public access to completed runs
+
+### Database Migration
+
+To apply the wizard lifecycle schema:
+```bash
+cd backend
+psql -U postgres -d wizarddb -f create_wizard_lifecycle_schema.sql
+```
+
+Or use the Python migration script (to be created):
+```bash
+python backend/migrate_wizard_lifecycle.py
+```
 
 ### Utility Scripts (in unused/)
 

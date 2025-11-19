@@ -21,8 +21,6 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   AutoFixHigh as WizardIcon,
-  PlayCircle as SessionIcon,
-  Save as TemplateIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
   Build as BuildIcon,
@@ -31,6 +29,9 @@ import {
   PlayArrow as WizardActionsIcon,
   Api as ApiIcon,
   Settings as ConfigIcon,
+  LibraryBooks as TemplateIcon,
+  DirectionsRun as RunIcon,
+  Storage as StoreIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -38,14 +39,12 @@ const drawerWidth = 240;
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Wizards', icon: <WizardIcon />, path: '/wizards' },
+  { text: 'Template Gallery', icon: <TemplateIcon />, path: '/templates' },
   { text: 'Wizard Builder', icon: <BuildIcon />, path: '/admin/wizard-builder' },
-  { text: 'Wizard Actions', icon: <WizardActionsIcon />, path: '/wizard-actions' },
-  { text: 'My Sessions', icon: <SessionIcon />, path: '/sessions' },
-  { text: 'My Templates', icon: <TemplateIcon />, path: '/templates' },
+  { text: 'Run Wizard', icon: <WizardActionsIcon />, path: '/wizards' },
+  { text: 'My Runs', icon: <RunIcon />, path: '/runs' },
+  { text: 'Store', icon: <StoreIcon />, path: '/store' },
   { text: 'Analytics', icon: <AnalyticsIcon />, path: '/admin/analytics' },
-  { text: 'API/MCP Setup', icon: <ApiIcon />, path: '/api-setup' },
-  { text: 'Configuration', icon: <ConfigIcon />, path: '/configuration' },
   { text: 'Users', icon: <PeopleIcon />, path: '/admin/users' },
 ];
 

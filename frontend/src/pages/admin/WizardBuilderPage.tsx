@@ -132,7 +132,7 @@ const WizardBuilderPage: React.FC = () => {
         await syncDependencies(createdWizard.id);
         setSnackbar({ open: true, message: 'Wizard created successfully!', severity: 'success' });
       } catch (error) {
-        setSnackbar({ open: true, message: 'Wizard created but failed to sync dependencies', severity: 'warning' });
+        setSnackbar({ open: true, message: 'Wizard created but failed to sync dependencies', severity: 'error' });
       }
       queryClient.invalidateQueries({ queryKey: ['wizards-list'] });
       resetForm();
@@ -150,7 +150,7 @@ const WizardBuilderPage: React.FC = () => {
         await syncDependencies(variables.id);
         setSnackbar({ open: true, message: 'Wizard updated successfully!', severity: 'success' });
       } catch (error) {
-        setSnackbar({ open: true, message: 'Wizard updated but failed to sync dependencies', severity: 'warning' });
+        setSnackbar({ open: true, message: 'Wizard updated but failed to sync dependencies', severity: 'error' });
       }
       queryClient.invalidateQueries({ queryKey: ['wizards-list'] });
     },
@@ -451,7 +451,7 @@ const WizardBuilderPage: React.FC = () => {
             for (const localDep of localDeps) {
               const exists = existingDeps.some(
                 ed => ed.depends_on_option_id === localDep.depends_on_option_id &&
-                      ed.dependency_type === localDep.dependency_type
+                  ed.dependency_type === localDep.dependency_type
               );
 
               if (!exists) {
@@ -471,7 +471,7 @@ const WizardBuilderPage: React.FC = () => {
             for (const existingDep of existingDeps) {
               const stillExists = localDeps.some(
                 ld => ld.depends_on_option_id === existingDep.depends_on_option_id &&
-                      ld.dependency_type === existingDep.dependency_type
+                  ld.dependency_type === existingDep.dependency_type
               );
 
               if (!stillExists && existingDep.id) {
@@ -611,447 +611,447 @@ const WizardBuilderPage: React.FC = () => {
           </Box>
 
           <Grid container spacing={3}>
-        {/* Basic Information */}
-        <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Basic Information
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Wizard Name"
-                    value={wizard.name}
-                    onChange={(e) => setWizard({ ...wizard, name: e.target.value })}
-                    required
+            {/* Basic Information */}
+            <Grid item xs={12} md={8}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Basic Information
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Wizard Name"
+                        value={wizard.name}
+                        onChange={(e) => setWizard({ ...wizard, name: e.target.value })}
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        label="Description"
+                        value={wizard.description}
+                        onChange={(e) => setWizard({ ...wizard, description: e.target.value })}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Category</InputLabel>
+                        <Select
+                          value={wizard.category_id || ''}
+                          label="Category"
+                          onChange={(e) => setWizard({ ...wizard, category_id: e.target.value })}
+                        >
+                          <MenuItem value="">None</MenuItem>
+                          {categories?.map((cat: any) => (
+                            <MenuItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Difficulty Level</InputLabel>
+                        <Select
+                          value={wizard.difficulty_level || ''}
+                          label="Difficulty Level"
+                          onChange={(e) => setWizard({ ...wizard, difficulty_level: e.target.value as 'easy' | 'medium' | 'hard' })}
+                        >
+                          <MenuItem value="easy">Easy</MenuItem>
+                          <MenuItem value="medium">Medium</MenuItem>
+                          <MenuItem value="hard">Hard</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Estimated Time (minutes)"
+                        value={wizard.estimated_time || ''}
+                        onChange={(e) => setWizard({ ...wizard, estimated_time: parseInt(e.target.value) || undefined })}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Icon"
+                        value={wizard.icon || ''}
+                        onChange={(e) => setWizard({ ...wizard, icon: e.target.value })}
+                        placeholder="e.g., feedback, settings, person"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <TextField
+                          label="Add Tag"
+                          value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                          size="small"
+                        />
+                        <Button onClick={handleAddTag} variant="outlined" size="small">
+                          Add
+                        </Button>
+                      </Box>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                        {wizard.tags.map((tag) => (
+                          <Chip key={tag} label={tag} onDelete={() => handleRemoveTag(tag)} size="small" />
+                        ))}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Settings */}
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Settings
+                  </Typography>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={wizard.is_published}
+                        onChange={(e) => setWizard({ ...wizard, is_published: e.target.checked })}
+                      />
+                    }
+                    label="Published"
                   />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={3}
-                    label="Description"
-                    value={wizard.description}
-                    onChange={(e) => setWizard({ ...wizard, description: e.target.value })}
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={wizard.require_login}
+                        onChange={(e) => setWizard({ ...wizard, require_login: e.target.checked })}
+                      />
+                    }
+                    label="Require Login"
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Category</InputLabel>
-                    <Select
-                      value={wizard.category_id || ''}
-                      label="Category"
-                      onChange={(e) => setWizard({ ...wizard, category_id: e.target.value })}
-                    >
-                      <MenuItem value="">None</MenuItem>
-                      {categories?.map((cat: any) => (
-                        <MenuItem key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Difficulty Level</InputLabel>
-                    <Select
-                      value={wizard.difficulty_level || ''}
-                      label="Difficulty Level"
-                      onChange={(e) => setWizard({ ...wizard, difficulty_level: e.target.value as 'easy' | 'medium' | 'hard' })}
-                    >
-                      <MenuItem value="easy">Easy</MenuItem>
-                      <MenuItem value="medium">Medium</MenuItem>
-                      <MenuItem value="hard">Hard</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    type="number"
-                    label="Estimated Time (minutes)"
-                    value={wizard.estimated_time || ''}
-                    onChange={(e) => setWizard({ ...wizard, estimated_time: parseInt(e.target.value) || undefined })}
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={wizard.allow_templates}
+                        onChange={(e) => setWizard({ ...wizard, allow_templates: e.target.checked })}
+                      />
+                    }
+                    label="Allow Templates"
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Icon"
-                    value={wizard.icon || ''}
-                    onChange={(e) => setWizard({ ...wizard, icon: e.target.value })}
-                    placeholder="e.g., feedback, settings, person"
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={wizard.auto_save}
+                        onChange={(e) => setWizard({ ...wizard, auto_save: e.target.checked })}
+                      />
+                    }
+                    label="Auto Save"
                   />
-                </Grid>
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    <TextField
-                      label="Add Tag"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
-                      size="small"
-                    />
-                    <Button onClick={handleAddTag} variant="outlined" size="small">
-                      Add
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Steps */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">Steps ({wizard.steps.length})</Typography>
+                    <Button startIcon={<AddIcon />} onClick={handleAddStep} variant="outlined">
+                      Add Step
                     </Button>
                   </Box>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                    {wizard.tags.map((tag) => (
-                      <Chip key={tag} label={tag} onDelete={() => handleRemoveTag(tag)} size="small" />
-                    ))}
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
 
-        {/* Settings */}
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Settings
-              </Typography>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={wizard.is_published}
-                    onChange={(e) => setWizard({ ...wizard, is_published: e.target.checked })}
-                  />
-                }
-                label="Published"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={wizard.require_login}
-                    onChange={(e) => setWizard({ ...wizard, require_login: e.target.checked })}
-                  />
-                }
-                label="Require Login"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={wizard.allow_templates}
-                    onChange={(e) => setWizard({ ...wizard, allow_templates: e.target.checked })}
-                  />
-                }
-                label="Allow Templates"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={wizard.auto_save}
-                    onChange={(e) => setWizard({ ...wizard, auto_save: e.target.checked })}
-                  />
-                }
-                label="Auto Save"
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Steps */}
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Steps ({wizard.steps.length})</Typography>
-                <Button startIcon={<AddIcon />} onClick={handleAddStep} variant="outlined">
-                  Add Step
-                </Button>
-              </Box>
-
-              {wizard.steps.length === 0 ? (
-                <Alert severity="info">No steps added yet. Click "Add Step" to create your first step.</Alert>
-              ) : (
-                wizard.steps.map((step, stepIndex) => (
-                  <Accordion key={stepIndex} sx={{ mb: 1 }}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                        <DragIcon color="action" />
-                        <Typography sx={{ flexGrow: 1 }}>
-                          Step {step.step_order}: {step.name}
-                        </Typography>
-                        <Chip
-                          size="small"
-                          label={`${step.option_sets.length} option sets`}
-                          color="primary"
-                          variant="outlined"
-                        />
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveStep(stepIndex);
-                          }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="Step Name"
-                            value={step.name}
-                            onChange={(e) => handleStepChange(stepIndex, 'name', e.target.value)}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <Box>
-                            <FormControlLabel
-                              control={
-                                <Switch
-                                  checked={step.is_required}
-                                  onChange={(e) => handleStepChange(stepIndex, 'is_required', e.target.checked)}
-                                />
-                              }
-                              label="Required"
+                  {wizard.steps.length === 0 ? (
+                    <Alert severity="info">No steps added yet. Click "Add Step" to create your first step.</Alert>
+                  ) : (
+                    wizard.steps.map((step, stepIndex) => (
+                      <Accordion key={stepIndex} sx={{ mb: 1 }}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                            <DragIcon color="action" />
+                            <Typography sx={{ flexGrow: 1 }}>
+                              Step {step.step_order}: {step.name}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={`${step.option_sets.length} option sets`}
+                              color="primary"
+                              variant="outlined"
                             />
-                            <FormControlLabel
-                              control={
-                                <Switch
-                                  checked={step.is_skippable}
-                                  onChange={(e) => handleStepChange(stepIndex, 'is_skippable', e.target.checked)}
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveStep(stepIndex);
+                              }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Box>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                fullWidth
+                                label="Step Name"
+                                value={step.name}
+                                onChange={(e) => handleStepChange(stepIndex, 'name', e.target.value)}
+                              />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Box>
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={step.is_required}
+                                      onChange={(e) => handleStepChange(stepIndex, 'is_required', e.target.checked)}
+                                    />
+                                  }
+                                  label="Required"
                                 />
-                              }
-                              label="Skippable"
-                            />
-                          </Box>
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            multiline
-                            rows={2}
-                            label="Description"
-                            value={step.description || ''}
-                            onChange={(e) => handleStepChange(stepIndex, 'description', e.target.value)}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            label="Help Text"
-                            value={step.help_text || ''}
-                            onChange={(e) => handleStepChange(stepIndex, 'help_text', e.target.value)}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12}>
-                          <Divider sx={{ my: 2 }} />
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                            <Typography variant="subtitle1">Option Sets</Typography>
-                            <Button size="small" startIcon={<AddIcon />} onClick={() => handleAddOptionSet(stepIndex)}>
-                              Add Option Set
-                            </Button>
-                          </Box>
-
-                          {step.option_sets.map((optionSet, osIndex) => (
-                            <Card key={osIndex} variant="outlined" sx={{ mb: 2, p: 2 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                                <Typography variant="subtitle2">Option Set {osIndex + 1}</Typography>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => handleRemoveOptionSet(stepIndex, osIndex)}
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={step.is_skippable}
+                                      onChange={(e) => handleStepChange(stepIndex, 'is_skippable', e.target.checked)}
+                                    />
+                                  }
+                                  label="Skippable"
+                                />
                               </Box>
-                              <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    fullWidth
-                                    size="small"
-                                    label="Name"
-                                    value={optionSet.name}
-                                    onChange={(e) => handleOptionSetChange(stepIndex, osIndex, 'name', e.target.value)}
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <FormControl fullWidth size="small">
-                                    <InputLabel>Selection Type</InputLabel>
-                                    <Select
-                                      value={optionSet.selection_type}
-                                      label="Selection Type"
-                                      onChange={(e) =>
-                                        handleOptionSetChange(stepIndex, osIndex, 'selection_type', e.target.value)
-                                      }
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                multiline
+                                rows={2}
+                                label="Description"
+                                value={step.description || ''}
+                                onChange={(e) => handleStepChange(stepIndex, 'description', e.target.value)}
+                              />
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="Help Text"
+                                value={step.help_text || ''}
+                                onChange={(e) => handleStepChange(stepIndex, 'help_text', e.target.value)}
+                              />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                              <Divider sx={{ my: 2 }} />
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="subtitle1">Option Sets</Typography>
+                                <Button size="small" startIcon={<AddIcon />} onClick={() => handleAddOptionSet(stepIndex)}>
+                                  Add Option Set
+                                </Button>
+                              </Box>
+
+                              {step.option_sets.map((optionSet, osIndex) => (
+                                <Card key={osIndex} variant="outlined" sx={{ mb: 2, p: 2 }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                                    <Typography variant="subtitle2">Option Set {osIndex + 1}</Typography>
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() => handleRemoveOptionSet(stepIndex, osIndex)}
                                     >
-                                      <MenuItem value="single_select">Single Select</MenuItem>
-                                      <MenuItem value="multiple_select">Multiple Select</MenuItem>
-                                      <MenuItem value="text_input">Text Input</MenuItem>
-                                      <MenuItem value="number_input">Number Input</MenuItem>
-                                      <MenuItem value="date_input">Date Input</MenuItem>
-                                      <MenuItem value="time_input">Time Input</MenuItem>
-                                      <MenuItem value="datetime_input">DateTime Input</MenuItem>
-                                      <MenuItem value="rating">Rating</MenuItem>
-                                      <MenuItem value="slider">Slider</MenuItem>
-                                      <MenuItem value="color_picker">Color Picker</MenuItem>
-                                      <MenuItem value="file_upload">File Upload</MenuItem>
-                                      <MenuItem value="rich_text">Rich Text</MenuItem>
-                                    </Select>
-                                  </FormControl>
-                                </Grid>
-                                <Grid item xs={12}>
-                                  <TextField
-                                    fullWidth
-                                    size="small"
-                                    label="Description"
-                                    value={optionSet.description || ''}
-                                    onChange={(e) =>
-                                      handleOptionSetChange(stepIndex, osIndex, 'description', e.target.value)
-                                    }
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    fullWidth
-                                    size="small"
-                                    label="Placeholder"
-                                    value={optionSet.placeholder || ''}
-                                    onChange={(e) =>
-                                      handleOptionSetChange(stepIndex, osIndex, 'placeholder', e.target.value)
-                                    }
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <FormControlLabel
-                                    control={
-                                      <Switch
-                                        checked={optionSet.is_required}
+                                      <DeleteIcon />
+                                    </IconButton>
+                                  </Box>
+                                  <Grid container spacing={2}>
+                                    <Grid item xs={12} sm={6}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Name"
+                                        value={optionSet.name}
+                                        onChange={(e) => handleOptionSetChange(stepIndex, osIndex, 'name', e.target.value)}
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                      <FormControl fullWidth size="small">
+                                        <InputLabel>Selection Type</InputLabel>
+                                        <Select
+                                          value={optionSet.selection_type}
+                                          label="Selection Type"
+                                          onChange={(e) =>
+                                            handleOptionSetChange(stepIndex, osIndex, 'selection_type', e.target.value)
+                                          }
+                                        >
+                                          <MenuItem value="single_select">Single Select</MenuItem>
+                                          <MenuItem value="multiple_select">Multiple Select</MenuItem>
+                                          <MenuItem value="text_input">Text Input</MenuItem>
+                                          <MenuItem value="number_input">Number Input</MenuItem>
+                                          <MenuItem value="date_input">Date Input</MenuItem>
+                                          <MenuItem value="time_input">Time Input</MenuItem>
+                                          <MenuItem value="datetime_input">DateTime Input</MenuItem>
+                                          <MenuItem value="rating">Rating</MenuItem>
+                                          <MenuItem value="slider">Slider</MenuItem>
+                                          <MenuItem value="color_picker">Color Picker</MenuItem>
+                                          <MenuItem value="file_upload">File Upload</MenuItem>
+                                          <MenuItem value="rich_text">Rich Text</MenuItem>
+                                        </Select>
+                                      </FormControl>
+                                    </Grid>
+                                    <Grid item xs={12}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Description"
+                                        value={optionSet.description || ''}
                                         onChange={(e) =>
-                                          handleOptionSetChange(stepIndex, osIndex, 'is_required', e.target.checked)
+                                          handleOptionSetChange(stepIndex, osIndex, 'description', e.target.value)
                                         }
                                       />
-                                    }
-                                    label="Required"
-                                  />
-                                </Grid>
-
-                                {/* Options for select types */}
-                                {(optionSet.selection_type === 'single_select' ||
-                                  optionSet.selection_type === 'multiple_select') && (
-                                  <Grid item xs={12}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                      <Typography variant="body2">Options</Typography>
-                                      <Button
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                      <TextField
+                                        fullWidth
                                         size="small"
-                                        onClick={() => handleAddOption(stepIndex, osIndex)}
-                                        startIcon={<AddIcon />}
-                                      >
-                                        Add Option
-                                      </Button>
-                                    </Box>
-                                    {optionSet.options.map((option, optIndex) => (
-                                      <Accordion key={optIndex} sx={{ mb: 1 }}>
-                                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                                            <Typography sx={{ flexGrow: 1 }}>
-                                              Option {optIndex + 1}: {option.label || 'Untitled'}
-                                            </Typography>
-                                            {option.dependencies && option.dependencies.length > 0 && (
-                                              <Chip
-                                                size="small"
-                                                label={`${option.dependencies.length} ${option.dependencies.length === 1 ? 'dependency' : 'dependencies'}`}
-                                                color="primary"
-                                                variant="outlined"
-                                              />
-                                            )}
-                                            <IconButton
+                                        label="Placeholder"
+                                        value={optionSet.placeholder || ''}
+                                        onChange={(e) =>
+                                          handleOptionSetChange(stepIndex, osIndex, 'placeholder', e.target.value)
+                                        }
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                      <FormControlLabel
+                                        control={
+                                          <Switch
+                                            checked={optionSet.is_required}
+                                            onChange={(e) =>
+                                              handleOptionSetChange(stepIndex, osIndex, 'is_required', e.target.checked)
+                                            }
+                                          />
+                                        }
+                                        label="Required"
+                                      />
+                                    </Grid>
+
+                                    {/* Options for select types */}
+                                    {(optionSet.selection_type === 'single_select' ||
+                                      optionSet.selection_type === 'multiple_select') && (
+                                        <Grid item xs={12}>
+                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                            <Typography variant="body2">Options</Typography>
+                                            <Button
                                               size="small"
-                                              color="error"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRemoveOption(stepIndex, osIndex, optIndex);
-                                              }}
+                                              onClick={() => handleAddOption(stepIndex, osIndex)}
+                                              startIcon={<AddIcon />}
                                             >
-                                              <DeleteIcon fontSize="small" />
-                                            </IconButton>
+                                              Add Option
+                                            </Button>
                                           </Box>
-                                        </AccordionSummary>
-                                        <AccordionDetails>
-                                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                              <TextField
-                                                size="small"
-                                                label="Label"
-                                                value={option.label}
-                                                onChange={(e) =>
-                                                  handleOptionChange(stepIndex, osIndex, optIndex, 'label', e.target.value)
-                                                }
-                                                sx={{ flexGrow: 1 }}
-                                              />
-                                              <TextField
-                                                size="small"
-                                                label="Value"
-                                                value={option.value}
-                                                onChange={(e) =>
-                                                  handleOptionChange(stepIndex, osIndex, optIndex, 'value', e.target.value)
-                                                }
-                                                sx={{ flexGrow: 1 }}
-                                              />
-                                            </Box>
-                                            <TextField
-                                              size="small"
-                                              label="Description (optional)"
-                                              value={option.description || ''}
-                                              onChange={(e) =>
-                                                handleOptionChange(stepIndex, osIndex, optIndex, 'description', e.target.value)
-                                              }
-                                              fullWidth
-                                              multiline
-                                              rows={2}
-                                            />
-                                            <FormControlLabel
-                                              control={
-                                                <Switch
-                                                  checked={option.is_default}
-                                                  onChange={(e) =>
-                                                    handleOptionChange(stepIndex, osIndex, optIndex, 'is_default', e.target.checked)
-                                                  }
-                                                />
-                                              }
-                                              label="Default Selection"
-                                            />
-                                            <Divider />
-                                            <OptionDependencyManager
-                                              currentOptionId={option.id}
-                                              dependencies={option.dependencies || []}
-                                              availableOptions={getAllAvailableOptions(stepIndex, osIndex)}
-                                              onChange={(deps) => handleDependencyChange(stepIndex, osIndex, optIndex, deps)}
-                                            />
-                                          </Box>
-                                        </AccordionDetails>
-                                      </Accordion>
-                                    ))}
+                                          {optionSet.options.map((option, optIndex) => (
+                                            <Accordion key={optIndex} sx={{ mb: 1 }}>
+                                              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                                                  <Typography sx={{ flexGrow: 1 }}>
+                                                    Option {optIndex + 1}: {option.label || 'Untitled'}
+                                                  </Typography>
+                                                  {option.dependencies && option.dependencies.length > 0 && (
+                                                    <Chip
+                                                      size="small"
+                                                      label={`${option.dependencies.length} ${option.dependencies.length === 1 ? 'dependency' : 'dependencies'}`}
+                                                      color="primary"
+                                                      variant="outlined"
+                                                    />
+                                                  )}
+                                                  <IconButton
+                                                    size="small"
+                                                    color="error"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleRemoveOption(stepIndex, osIndex, optIndex);
+                                                    }}
+                                                  >
+                                                    <DeleteIcon fontSize="small" />
+                                                  </IconButton>
+                                                </Box>
+                                              </AccordionSummary>
+                                              <AccordionDetails>
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                                    <TextField
+                                                      size="small"
+                                                      label="Label"
+                                                      value={option.label}
+                                                      onChange={(e) =>
+                                                        handleOptionChange(stepIndex, osIndex, optIndex, 'label', e.target.value)
+                                                      }
+                                                      sx={{ flexGrow: 1 }}
+                                                    />
+                                                    <TextField
+                                                      size="small"
+                                                      label="Value"
+                                                      value={option.value}
+                                                      onChange={(e) =>
+                                                        handleOptionChange(stepIndex, osIndex, optIndex, 'value', e.target.value)
+                                                      }
+                                                      sx={{ flexGrow: 1 }}
+                                                    />
+                                                  </Box>
+                                                  <TextField
+                                                    size="small"
+                                                    label="Description (optional)"
+                                                    value={option.description || ''}
+                                                    onChange={(e) =>
+                                                      handleOptionChange(stepIndex, osIndex, optIndex, 'description', e.target.value)
+                                                    }
+                                                    fullWidth
+                                                    multiline
+                                                    rows={2}
+                                                  />
+                                                  <FormControlLabel
+                                                    control={
+                                                      <Switch
+                                                        checked={option.is_default}
+                                                        onChange={(e) =>
+                                                          handleOptionChange(stepIndex, osIndex, optIndex, 'is_default', e.target.checked)
+                                                        }
+                                                      />
+                                                    }
+                                                    label="Default Selection"
+                                                  />
+                                                  <Divider />
+                                                  <OptionDependencyManager
+                                                    currentOptionId={option.id}
+                                                    dependencies={option.dependencies || []}
+                                                    availableOptions={getAllAvailableOptions(stepIndex, osIndex)}
+                                                    onChange={(deps) => handleDependencyChange(stepIndex, osIndex, optIndex, deps)}
+                                                  />
+                                                </Box>
+                                              </AccordionDetails>
+                                            </Accordion>
+                                          ))}
+                                        </Grid>
+                                      )}
                                   </Grid>
-                                )}
-                              </Grid>
-                            </Card>
-                          ))}
-                        </Grid>
-                      </Grid>
-                    </AccordionDetails>
-                  </Accordion>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+                                </Card>
+                              ))}
+                            </Grid>
+                          </Grid>
+                        </AccordionDetails>
+                      </Accordion>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </Box>
       )}
 

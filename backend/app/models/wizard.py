@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime, Text, Integer, Numeric, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -15,7 +15,7 @@ class WizardCategory(Base):
     icon = Column(String(50))
     display_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
@@ -55,7 +55,7 @@ class Wizard(Base):
     completed_sessions = Column(Integer, default=0)
     average_completion_time = Column(Integer)  # seconds
 
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     published_at = Column(DateTime(timezone=True))
 
@@ -68,8 +68,7 @@ class Wizard(Base):
     creator = relationship("User", back_populates="wizards")
     steps = relationship("Step", back_populates="wizard", cascade="all, delete-orphan", order_by="Step.step_order")
     flow_rules = relationship("FlowRule", back_populates="wizard", cascade="all, delete-orphan")
-    sessions = relationship("UserSession", back_populates="wizard")
-    templates = relationship("Template", back_populates="wizard")
+    runs = relationship("WizardRun", back_populates="wizard")
 
     def __repr__(self):
         return f"<Wizard(name={self.name})>"
@@ -99,7 +98,7 @@ class Step(Base):
     # Validation
     validation_rules = Column(JSONB, default={})
 
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
@@ -138,7 +137,7 @@ class OptionSet(Base):
     # For number/slider inputs
     step_increment = Column(Numeric, default=1)
 
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
@@ -182,7 +181,7 @@ class Option(Base):
     # Metadata
     option_metadata = Column("metadata", JSONB, default={})
 
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
@@ -200,7 +199,7 @@ class OptionDependency(Base):
     option_id = Column(UUID(as_uuid=True), ForeignKey("options.id", ondelete="CASCADE"), nullable=False)
     depends_on_option_id = Column(UUID(as_uuid=True), ForeignKey("options.id", ondelete="CASCADE"), nullable=False)
     dependency_type = Column(String(50), nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         CheckConstraint(
@@ -228,7 +227,7 @@ class FlowRule(Base):
     condition = Column(JSONB, nullable=False)
     priority = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships

@@ -11,10 +11,6 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import WizardBrowserPage from './pages/WizardBrowserPage';
 import WizardPlayerPage from './pages/WizardPlayerPage';
-import SessionsPage from './pages/SessionsPage';
-import SessionDetailPage from './pages/SessionDetailPage';
-import TemplatesPage from './pages/TemplatesPage';
-import TemplateViewPage from './pages/TemplateViewPage';
 import WizardBuilderPage from './pages/admin/WizardBuilderPage';
 import AnalyticsDashboardPage from './pages/admin/AnalyticsDashboardPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
@@ -66,38 +62,6 @@ function App() {
           element={
             <ProtectedRoute>
               <WizardPlayerPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/sessions"
-          element={
-            <ProtectedRoute>
-              <SessionsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/sessions/:sessionId"
-          element={
-            <ProtectedRoute>
-              <SessionDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/templates"
-          element={
-            <ProtectedRoute>
-              <TemplatesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/templates/:templateId"
-          element={
-            <ProtectedRoute>
-              <TemplateViewPage />
             </ProtectedRoute>
           }
         />

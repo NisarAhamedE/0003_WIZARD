@@ -25,11 +25,11 @@ const LoginPage: React.FC = () => {
 
     try {
       await login({ username, password });
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : 'Invalid credentials. Please try again.';
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const errorMessage = err?.response?.data?.detail
+        || err?.message
+        || 'Invalid credentials. Please try again.';
       setError(errorMessage);
     } finally {
       setLoading(false);

@@ -240,6 +240,7 @@ class WizardListResponse(BaseModel):
     icon: Optional[str] = None
     cover_image: Optional[str] = None
     is_published: bool
+    require_login: bool = False
     estimated_time: Optional[int] = None
     difficulty_level: Optional[str] = None
     tags: List[str] = []

@@ -1,8 +1,15 @@
 from app.models.user import User, UserRole
 from app.models.wizard import Wizard, WizardCategory, Step, OptionSet, Option, OptionDependency, FlowRule
-from app.models.session import UserSession, SessionResponse
-from app.models.template import Template, TemplateResponse
 from app.models.analytics import AnalyticsEvent, AuditLog, SystemSetting
+from app.models.wizard_template import WizardTemplate, WizardTemplateRating
+from app.models.wizard_run import (
+    WizardRun,
+    WizardRunStepResponse,
+    WizardRunOptionSetResponse,
+    WizardRunFileUpload,
+    WizardRunShare,
+    WizardRunComparison
+)
 
 __all__ = [
     "User",
@@ -14,11 +21,15 @@ __all__ = [
     "Option",
     "OptionDependency",
     "FlowRule",
-    "UserSession",
-    "SessionResponse",
-    "Template",
-    "TemplateResponse",
     "AnalyticsEvent",
     "AuditLog",
     "SystemSetting",
+    "WizardTemplate",
+    "WizardTemplateRating",
+    "WizardRun",
+    "WizardRunStepResponse",
+    "WizardRunOptionSetResponse",
+    "WizardRunFileUpload",
+    "WizardRunShare",
+    "WizardRunComparison",
 ]

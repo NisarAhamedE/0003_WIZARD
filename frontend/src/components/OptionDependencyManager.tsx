@@ -15,7 +15,7 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { DependencyType, OptionDependency } from '../types';
+import { DependencyType } from '../types';
 
 interface AvailableOption {
   id: string;

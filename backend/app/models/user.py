@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -13,7 +13,7 @@ class UserRole(Base):
     name = Column(String(50), unique=True, nullable=False)
     description = Column(Text)
     permissions = Column(JSONB, nullable=False, default={})
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
@@ -35,14 +35,16 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     last_login = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     role = relationship("UserRole", back_populates="users")
     wizards = relationship("Wizard", back_populates="creator")
-    sessions = relationship("UserSession", back_populates="user")
-    templates = relationship("Template", back_populates="user")
+    template_ratings = relationship("WizardTemplateRating", back_populates="user")
+    wizard_runs = relationship("WizardRun", back_populates="user")
+    shared_runs = relationship("WizardRunShare", back_populates="user")
+    run_comparisons = relationship("WizardRunComparison", back_populates="user")
 
     def __repr__(self):
         return f"<User(username={self.username}, email={self.email})>"

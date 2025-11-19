@@ -28,7 +28,6 @@ import {
 } from '@mui/material';
 import {
   MoreVert as MoreIcon,
-  Edit as EditIcon,
   Block as BlockIcon,
   AdminPanelSettings as RoleIcon,
 } from '@mui/icons-material';

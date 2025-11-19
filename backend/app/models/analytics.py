@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB, INET
 from app.database import Base
@@ -28,7 +28,7 @@ class AnalyticsEvent(Base):
     ip_address = Column(INET)
     user_agent = Column(Text)
 
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):
         return f"<AnalyticsEvent(type={self.event_type}, name={self.event_name})>"
@@ -56,7 +56,7 @@ class AuditLog(Base):
     user_agent = Column(Text)
 
     # When
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):
         return f"<AuditLog(action={self.action}, resource={self.resource_type})>"
@@ -70,7 +70,7 @@ class SystemSetting(Base):
     value = Column(JSONB, nullable=False)
     description = Column(Text)
     is_public = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):

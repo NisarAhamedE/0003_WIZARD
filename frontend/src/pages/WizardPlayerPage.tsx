@@ -39,8 +39,6 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wizardService } from '../services/wizard.service';
-import { sessionService } from '../services/session.service';
-import { templateService } from '../services/template.service';
 import { OptionSet } from '../types';
 
 interface ResponseData {
@@ -128,12 +126,29 @@ const WizardPlayerPage: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('✗ Error completing session:', error);
+
+      // If session is already completed (not in progress), treat as success
+      if (error.response?.data?.detail === 'Session is not in progress') {
+        console.log('Session was already completed, showing completion screen');
+        setIsCompleted(true);
+        queryClient.invalidateQueries({ queryKey: ['sessions'] });
+        setShowTemplateDialog(true);
+        setSnackbar({
+          open: true,
+          message: 'Wizard completed successfully!',
+          severity: 'success',
+        });
+        return;
+      }
+
       setSnackbar({
         open: true,
         message: error.response?.data?.detail || 'Failed to complete session',
         severity: 'error',
       });
-      // Still mark as completed locally for UX
+      // Still mark as completed locally for UX if it's a terminal error
+      // But if it's a real error (e.g. network), maybe we shouldn't?
+      // For now, keeping existing behavior but fixing the confusing error message
       setIsCompleted(true);
     },
   });
@@ -448,7 +463,7 @@ const WizardPlayerPage: React.FC = () => {
       if (option.dependencies) {
         for (const dep of option.dependencies) {
           if (dep.dependency_type === 'require_if' &&
-              selectedOptionIds.includes(dep.depends_on_option_id)) {
+            selectedOptionIds.includes(dep.depends_on_option_id)) {
             return true;
           }
         }
@@ -467,7 +482,7 @@ const WizardPlayerPage: React.FC = () => {
       if (option.dependencies) {
         for (const dep of option.dependencies) {
           if (dep.dependency_type === 'disable_if' &&
-              selectedOptionIds.includes(dep.depends_on_option_id)) {
+            selectedOptionIds.includes(dep.depends_on_option_id)) {
             return true;
           }
         }
@@ -807,20 +822,42 @@ const WizardPlayerPage: React.FC = () => {
               </Typography>
             )}
             <Button variant="outlined" component="label" sx={{ mt: 1 }} disabled={isFileUploadDisabled}>
-              Choose File
+              {responses[optionSet.id] ? 'Change File' : 'Choose File'}
               <input
                 type="file"
                 hidden
                 disabled={isFileUploadDisabled}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const file = e.target.files?.[0];
-                  if (file) {
-                    // Store filename for now (full upload would need backend endpoint)
-                    handleResponseChange(optionSet.id, file.name);
+                  if (file && sessionId) {
+                    try {
+                      // Show uploading state (could add specific state for this)
+                      const result = await sessionService.uploadFile(sessionId, file);
+                      handleResponseChange(optionSet.id, result.url);
+                      setSnackbar({
+                        open: true,
+                        message: `File ${file.name} uploaded successfully`,
+                        severity: 'success',
+                      });
+                    } catch (error) {
+                      console.error('Upload failed:', error);
+                      setSnackbar({
+                        open: true,
+                        message: 'File upload failed',
+                        severity: 'error',
+                      });
+                    }
                   }
                 }}
               />
             </Button>
+            {responses[optionSet.id] && (
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="body2">
+                  File uploaded: <a href={responses[optionSet.id] as string} target="_blank" rel="noopener noreferrer">View File</a>
+                </Typography>
+              </Box>
+            )}
             {responses[optionSet.id] && (
               <Typography variant="body2" sx={{ mt: 1 }}>
                 Selected: {responses[optionSet.id]}
@@ -1119,6 +1156,47 @@ const WizardPlayerPage: React.FC = () => {
           {currentStepIndex === wizard.steps.length - 1 ? 'Complete' : 'Next'}
         </Button>
       </Box>
+
+      {currentStep && currentStep.is_skippable && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Button
+            color="inherit"
+            onClick={async () => {
+              // Skip logic: move to next step without validating or saving
+              if (currentStepIndex < wizard.steps.length - 1) {
+                const nextStepIndex = currentStepIndex + 1;
+                setCurrentStepIndex(nextStepIndex);
+                setErrors({});
+
+                // Update progress
+                const progressPercentage = ((nextStepIndex + 1) / wizard.steps.length) * 100;
+                if (sessionId) {
+                  try {
+                    await sessionService.updateSession(sessionId, {
+                      current_step_id: wizard.steps[nextStepIndex].id,
+                      progress_percentage: Math.round(progressPercentage),
+                    } as any);
+                  } catch (error) {
+                    console.error('Error updating progress on skip:', error);
+                  }
+                }
+              } else {
+                // Skip last step = complete? Or just finish?
+                // Usually skip means "don't answer", so we just complete.
+                if (sessionId) {
+                  try {
+                    await completeSessionMutation.mutateAsync(sessionId);
+                  } catch (error) {
+                    console.error('Error completing session on skip:', error);
+                  }
+                }
+              }
+            }}
+          >
+            Skip this step
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 };
