@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -57,6 +57,7 @@ const WizardPlayerPage: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isCompleted, setIsCompleted] = useState(false);
+  const runCreationAttempted = useRef(false);
 
   // Session name dialog state
   const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
@@ -185,14 +186,15 @@ const WizardPlayerPage: React.FC = () => {
     setTemplateIsPublic(false);
   };
 
-  // Load existing session from URL or show session name dialog for new sessions
+  // Load existing session from URL or create new run automatically
   useEffect(() => {
-    if (wizard && !sessionId) {
+    if (wizard && !sessionId && !runCreationAttempted.current) {
       if (sessionIdFromUrl) {
         // Load existing session from URL
         setSessionId(sessionIdFromUrl);
       } else {
         // Automatically create a new run without asking for a name
+        runCreationAttempted.current = true;
         createSessionMutation.mutate({
           wizard_id: wizard.id,
         });
