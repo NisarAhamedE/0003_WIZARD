@@ -39,6 +39,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wizardService } from '../services/wizard.service';
+import { wizardRunService } from '../services';
 import { OptionSet } from '../types';
 
 interface ResponseData {
@@ -82,15 +83,16 @@ const WizardPlayerPage: React.FC = () => {
   });
 
   const createSessionMutation = useMutation({
-    mutationFn: (data: { wizard_id: string; session_name: string }) => sessionService.createSession(data),
-    onSuccess: (session) => {
-      setSessionId(session.id);
+    mutationFn: (data: { wizard_id: string; run_name: string }) =>
+      wizardRunService.createWizardRun(data),
+    onSuccess: (run) => {
+      setSessionId(run.id);
       setShowSessionNameDialog(false);
     },
     onError: () => {
       setSnackbar({
         open: true,
-        message: 'Failed to create session',
+        message: 'Failed to create run',
         severity: 'error',
       });
     },
@@ -351,14 +353,14 @@ const WizardPlayerPage: React.FC = () => {
 
   const handleCreateSession = () => {
     if (!sessionName.trim()) {
-      setSessionNameError('Session name is required');
+      setSessionNameError('Run name is required');
       return;
     }
     if (!wizard) return;
 
     createSessionMutation.mutate({
       wizard_id: wizard.id,
-      session_name: sessionName.trim(),
+      run_name: sessionName.trim(),
     });
   };
 
