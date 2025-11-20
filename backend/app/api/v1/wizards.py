@@ -79,6 +79,30 @@ def create_wizard(
     return wizard
 
 
+# Wizard Protection & Lifecycle endpoints (MUST come before generic /{wizard_id} route)
+@router.get("/{wizard_id}/protection-status")
+def get_wizard_protection_status(
+    wizard_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # Changed from get_current_admin_user
+):
+    """
+    Get protection status for a wizard.
+    Returns lifecycle state, edit permissions, and available actions.
+    """
+    from app.services.wizard_protection import WizardProtectionService
+
+    wizard = wizard_crud.get(db, wizard_id)
+    if not wizard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wizard not found"
+        )
+
+    status_info = WizardProtectionService.get_wizard_state(db, wizard_id)
+    return status_info
+
+
 @router.get("/{wizard_id}", response_model=WizardResponse)
 def get_wizard(
     wizard_id: UUID,
@@ -110,15 +134,37 @@ def get_wizard(
 def update_wizard(
     wizard_id: UUID,
     wizard_in: WizardUpdate,
+    force: bool = Query(False, description="Force update even with active runs"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
-    """Update wizard (Admin only)."""
+    """Update wizard (Admin only) with protection checks."""
+    from app.services.wizard_protection import WizardProtectionService
+
     wizard = wizard_crud.get(db, wizard_id)
     if not wizard:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Wizard not found"
+        )
+
+    # Check if modification is allowed
+    can_modify, reason = WizardProtectionService.can_modify_wizard(db, wizard_id)
+    if not can_modify:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=reason
+        )
+
+    # If there's a warning and user hasn't forced, return warning
+    if reason and not force:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": reason,
+                "requires_confirmation": True,
+                "hint": "Add force=true to confirm and proceed"
+            }
         )
 
     wizard = wizard_crud.update(db, wizard, wizard_in)
@@ -151,7 +197,9 @@ def delete_wizard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
-    """Soft delete wizard (Admin only)."""
+    """Soft delete wizard (Admin only) with protection checks."""
+    from app.services.wizard_protection import WizardProtectionService
+
     wizard = wizard_crud.get(db, wizard_id)
     if not wizard:
         raise HTTPException(
@@ -159,8 +207,182 @@ def delete_wizard(
             detail="Wizard not found"
         )
 
+    # Check if deletion is allowed
+    can_delete, reason = WizardProtectionService.can_delete_wizard(db, wizard_id)
+    if not can_delete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=reason
+        )
+
     wizard_crud.soft_delete(db, wizard)
-    return {"message": "Wizard deleted successfully"}
+    return {"message": "Wizard deleted successfully", "warning": reason if reason else None}
+
+
+@router.post("/{wizard_id}/clone", response_model=WizardResponse, status_code=status.HTTP_201_CREATED)
+def clone_wizard(
+    wizard_id: UUID,
+    new_name: str = Query(..., description="Name for the cloned wizard"),
+    new_description: Optional[str] = Query(None, description="Optional description for the clone"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Clone a wizard with all its steps, option sets, options, and dependencies.
+    Useful for creating editable copies of published wizards.
+    """
+    wizard = wizard_crud.get(db, wizard_id)
+    if not wizard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wizard not found"
+        )
+
+    cloned_wizard = wizard_crud.clone_wizard(
+        db=db,
+        wizard_id=wizard_id,
+        new_name=new_name,
+        created_by=current_user.id,
+        new_description=new_description
+    )
+
+    if not cloned_wizard:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to clone wizard"
+        )
+
+    return cloned_wizard
+
+
+@router.post("/{wizard_id}/create-version", response_model=WizardResponse, status_code=status.HTTP_201_CREATED)
+def create_wizard_version(
+    wizard_id: UUID,
+    new_name: Optional[str] = Query(None, description="Name for the new version (auto-generated if not provided)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Create a new version of a wizard.
+    Links to parent wizard and increments version number.
+    """
+    from app.services.wizard_protection import WizardProtectionService
+
+    wizard = wizard_crud.get(db, wizard_id)
+    if not wizard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wizard not found"
+        )
+
+    versioned_wizard = WizardProtectionService.create_wizard_version(
+        db=db,
+        wizard_id=wizard_id,
+        new_name=new_name
+    )
+
+    if not versioned_wizard:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create wizard version"
+        )
+
+    return versioned_wizard
+
+
+@router.post("/{wizard_id}/archive")
+def archive_wizard(
+    wizard_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Archive a wizard (soft delete for published wizards with stored runs).
+    Archived wizards are hidden but data is preserved.
+    """
+    from app.services.wizard_protection import WizardProtectionService
+
+    wizard = wizard_crud.get(db, wizard_id)
+    if not wizard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wizard not found"
+        )
+
+    success = WizardProtectionService.archive_wizard(db, wizard_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to archive wizard"
+        )
+
+    return {"message": "Wizard archived successfully"}
+
+
+@router.post("/{wizard_id}/unarchive")
+def unarchive_wizard(
+    wizard_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Unarchive a wizard, making it active again.
+    """
+    from app.services.wizard_protection import WizardProtectionService
+
+    wizard = wizard_crud.get(db, wizard_id)
+    if not wizard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wizard not found"
+        )
+
+    success = WizardProtectionService.unarchive_wizard(db, wizard_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to unarchive wizard"
+        )
+
+    return {"message": "Wizard unarchived successfully"}
+
+
+@router.post("/{wizard_id}/delete-all-runs")
+def delete_all_wizard_runs(
+    wizard_id: UUID,
+    confirm: bool = Query(False, description="Must be true to confirm deletion"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Delete all runs for a wizard (use for in-use wizards before modification).
+    Requires confirmation parameter.
+    """
+    from app.services.wizard_protection import WizardProtectionService
+
+    if not confirm:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must set confirm=true to delete all runs"
+        )
+
+    wizard = wizard_crud.get(db, wizard_id)
+    if not wizard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wizard not found"
+        )
+
+    # Check wizard state - should not delete runs from published wizards
+    state_info = WizardProtectionService.get_wizard_state(db, wizard_id)
+    if state_info["state"] == "published":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot delete runs from published wizard with stored data"
+        )
+
+    count = WizardProtectionService.delete_all_runs_for_wizard(db, wizard_id)
+    return {"message": f"Deleted {count} run(s) successfully", "count": count}
 
 
 # Step endpoints

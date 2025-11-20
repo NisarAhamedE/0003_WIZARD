@@ -63,7 +63,7 @@ const StoreWizardPage: React.FC = () => {
   };
 
   const handleViewRun = (run: WizardRun) => {
-    navigate(`/wizard/${run.wizard_id}?run_id=${run.id}&view_only=true`);
+    navigate(`/wizard/${run.wizard_id}?session=${run.id}&view_only=true`);
   };
 
   const handleShareRun = async (run: WizardRun) => {
@@ -199,7 +199,7 @@ const StoreWizardPage: React.FC = () => {
                       Completed: {run.completed_at ? formatDate(run.completed_at) : 'N/A'}
                     </Typography>
 
-                    {run.calculated_price !== undefined && (
+                    {run.calculated_price !== undefined && run.calculated_price !== null && (
                       <Typography variant="body2" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
                         Total: ${run.calculated_price.toFixed(2)}
                       </Typography>

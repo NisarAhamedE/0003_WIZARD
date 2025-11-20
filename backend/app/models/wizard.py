@@ -59,8 +59,18 @@ class Wizard(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     published_at = Column(DateTime(timezone=True))
 
+    # Lifecycle protection fields
+    lifecycle_state = Column(String(20), default='draft')
+    first_run_at = Column(DateTime(timezone=True))
+    first_stored_run_at = Column(DateTime(timezone=True))
+    is_archived = Column(Boolean, default=False)
+    archived_at = Column(DateTime(timezone=True))
+    version_number = Column(Integer, default=1)
+    parent_wizard_id = Column(UUID(as_uuid=True), ForeignKey("wizards.id", ondelete="SET NULL"))
+
     __table_args__ = (
         CheckConstraint(difficulty_level.in_(['easy', 'medium', 'hard']), name='check_difficulty_level'),
+        CheckConstraint(lifecycle_state.in_(['draft', 'in_use', 'published']), name='check_lifecycle_state'),
     )
 
     # Relationships

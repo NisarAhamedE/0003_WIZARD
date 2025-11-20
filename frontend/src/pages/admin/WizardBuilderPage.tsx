@@ -35,11 +35,17 @@ import {
   DragIndicator as DragIcon,
   Edit as EditIcon,
   AddCircle as CreateIcon,
+  Lock as LockIcon,
+  Warning as WarningIcon,
+  ContentCopy as CloneIcon,
+  NewReleases as VersionIcon,
+  Archive as ArchiveIcon,
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { wizardService } from '../../services/wizard.service';
 import OptionDependencyManager from '../../components/OptionDependencyManager';
 import { DependencyType } from '../../types';
+import { useWizardProtection, getStateColor, getStateLabel } from '../../hooks/useWizardProtection';
 
 interface OptionData {
   id?: string;
@@ -113,6 +119,19 @@ const WizardBuilderPage: React.FC = () => {
     wizardId: null,
     wizardName: '',
   });
+  const [cloneDialog, setCloneDialog] = useState<{ open: boolean; name: string; description: string }>({
+    open: false,
+    name: '',
+    description: '',
+  });
+  const [versionDialog, setVersionDialog] = useState<{ open: boolean; name: string }>({
+    open: false,
+    name: '',
+  });
+  const [confirmModifyDialog, setConfirmModifyDialog] = useState<{ open: boolean; runCount: number }>({
+    open: false,
+    runCount: 0,
+  });
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -123,6 +142,9 @@ const WizardBuilderPage: React.FC = () => {
     queryKey: ['wizards-list'],
     queryFn: () => wizardService.getWizards({ published_only: false }),
   });
+
+  // Get protection status for the wizard being edited
+  const { data: protectionStatus, refetch: refetchProtection } = useWizardProtection(editingWizardId || undefined);
 
   const createWizardMutation = useMutation({
     mutationFn: (data: WizardData) => wizardService.createWizard(data),
@@ -172,6 +194,48 @@ const WizardBuilderPage: React.FC = () => {
         message: error.response?.data?.detail || 'Failed to delete wizard. It may have active sessions.',
         severity: 'error'
       });
+    },
+  });
+
+  const cloneWizardMutation = useMutation({
+    mutationFn: (data: { wizardId: string; name: string; description?: string }) =>
+      wizardService.cloneWizard(data.wizardId, data.name, data.description),
+    onSuccess: (clonedWizard) => {
+      setSnackbar({ open: true, message: 'Wizard cloned successfully!', severity: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['wizards-list'] });
+      setCloneDialog({ open: false, name: '', description: '' });
+      // Open the cloned wizard for editing
+      loadWizardForEditing(clonedWizard.id);
+    },
+    onError: (error: any) => {
+      setSnackbar({ open: true, message: error.response?.data?.detail || 'Failed to clone wizard', severity: 'error' });
+    },
+  });
+
+  const createVersionMutation = useMutation({
+    mutationFn: (data: { wizardId: string; name?: string }) =>
+      wizardService.createWizardVersion(data.wizardId, data.name),
+    onSuccess: (versionedWizard) => {
+      setSnackbar({ open: true, message: 'New version created successfully!', severity: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['wizards-list'] });
+      setVersionDialog({ open: false, name: '' });
+      // Open the new version for editing
+      loadWizardForEditing(versionedWizard.id);
+    },
+    onError: (error: any) => {
+      setSnackbar({ open: true, message: error.response?.data?.detail || 'Failed to create version', severity: 'error' });
+    },
+  });
+
+  const deleteAllRunsMutation = useMutation({
+    mutationFn: (wizardId: string) => wizardService.deleteAllWizardRuns(wizardId),
+    onSuccess: () => {
+      setSnackbar({ open: true, message: 'All runs deleted successfully!', severity: 'success' });
+      setConfirmModifyDialog({ open: false, runCount: 0 });
+      refetchProtection();
+    },
+    onError: (error: any) => {
+      setSnackbar({ open: true, message: error.response?.data?.detail || 'Failed to delete runs', severity: 'error' });
     },
   });
 
@@ -262,6 +326,44 @@ const WizardBuilderPage: React.FC = () => {
 
   const handleDeleteCancel = () => {
     setDeleteDialog({ open: false, wizardId: null, wizardName: '' });
+  };
+
+  const handleCloneClick = () => {
+    if (editingWizardId) {
+      setCloneDialog({ open: true, name: `${wizard.name} (Copy)`, description: wizard.description || '' });
+    }
+  };
+
+  const handleCloneConfirm = () => {
+    if (editingWizardId && cloneDialog.name.trim()) {
+      cloneWizardMutation.mutate({
+        wizardId: editingWizardId,
+        name: cloneDialog.name,
+        description: cloneDialog.description || undefined,
+      });
+    }
+  };
+
+  const handleVersionClick = () => {
+    if (editingWizardId && protectionStatus) {
+      const nextVersion = (protectionStatus.state === 'published' ? 2 : 1);
+      setVersionDialog({ open: true, name: `${wizard.name} v${nextVersion}` });
+    }
+  };
+
+  const handleVersionConfirm = () => {
+    if (editingWizardId) {
+      createVersionMutation.mutate({
+        wizardId: editingWizardId,
+        name: versionDialog.name.trim() || undefined,
+      });
+    }
+  };
+
+  const handleConfirmModify = () => {
+    if (editingWizardId) {
+      deleteAllRunsMutation.mutate(editingWizardId);
+    }
   };
 
   const handleAddTag = () => {
@@ -595,20 +697,84 @@ const WizardBuilderPage: React.FC = () => {
               <Typography variant="h4">
                 {editingWizardId ? 'Edit Wizard' : 'Create New Wizard'}
               </Typography>
+              {editingWizardId && protectionStatus && (
+                <Chip
+                  icon={protectionStatus.state === 'published' ? <LockIcon /> : protectionStatus.state === 'in_use' ? <WarningIcon /> : undefined}
+                  label={getStateLabel(protectionStatus.state)}
+                  color={getStateColor(protectionStatus.state)}
+                  size="medium"
+                />
+              )}
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<SaveIcon />}
-              onClick={handleSave}
-              disabled={createWizardMutation.isPending || updateWizardMutation.isPending}
-            >
-              {createWizardMutation.isPending || updateWizardMutation.isPending
-                ? 'Saving...'
-                : editingWizardId
-                  ? 'Update Wizard'
-                  : 'Save Wizard'}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {editingWizardId && protectionStatus?.state === 'published' && (
+                <>
+                  <Button
+                    variant="outlined"
+                    startIcon={<CloneIcon />}
+                    onClick={handleCloneClick}
+                  >
+                    Clone
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<VersionIcon />}
+                    onClick={handleVersionClick}
+                  >
+                    New Version
+                  </Button>
+                </>
+              )}
+              {!protectionStatus || protectionStatus.can_edit ? (
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSave}
+                  disabled={createWizardMutation.isPending || updateWizardMutation.isPending}
+                >
+                  {createWizardMutation.isPending || updateWizardMutation.isPending
+                    ? 'Saving...'
+                    : editingWizardId
+                      ? 'Update Wizard'
+                      : 'Save Wizard'}
+                </Button>
+              ) : null}
+            </Box>
           </Box>
+
+          {/* Protection Status Banners */}
+          {editingWizardId && protectionStatus && (
+            <>
+              {protectionStatus.state === 'published' && (
+                <Alert severity="error" sx={{ mb: 3 }} icon={<LockIcon />}>
+                  <strong>Read-Only:</strong> {protectionStatus.message}
+                  <br />
+                  <Typography variant="caption">
+                    This wizard has {protectionStatus.stored_runs} stored run(s). Use "Clone" or "New Version" to make changes.
+                  </Typography>
+                </Alert>
+              )}
+              {protectionStatus.state === 'in_use' && (
+                <Alert severity="warning" sx={{ mb: 3 }} icon={<WarningIcon />}>
+                  <strong>Warning:</strong> {protectionStatus.message}
+                  <br />
+                  <Typography variant="caption">
+                    Modifying this wizard will affect {protectionStatus.total_runs} active run(s). You can delete all runs before modifying.
+                  </Typography>
+                  <Box sx={{ mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="warning"
+                      onClick={() => setConfirmModifyDialog({ open: true, runCount: protectionStatus.total_runs })}
+                    >
+                      Delete All Runs & Continue
+                    </Button>
+                  </Box>
+                </Alert>
+              )}
+            </>
+          )}
 
           <Grid container spacing={3}>
             {/* Basic Information */}
@@ -626,6 +792,7 @@ const WizardBuilderPage: React.FC = () => {
                         value={wizard.name}
                         onChange={(e) => setWizard({ ...wizard, name: e.target.value })}
                         required
+                        disabled={protectionStatus?.state === 'published'}
                       />
                     </Grid>
                     <Grid item xs={12}>
@@ -636,10 +803,11 @@ const WizardBuilderPage: React.FC = () => {
                         label="Description"
                         value={wizard.description}
                         onChange={(e) => setWizard({ ...wizard, description: e.target.value })}
+                        disabled={protectionStatus?.state === 'published'}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                      <FormControl fullWidth>
+                      <FormControl fullWidth disabled={protectionStatus?.state === 'published'}>
                         <InputLabel>Category</InputLabel>
                         <Select
                           value={wizard.category_id || ''}
@@ -656,7 +824,7 @@ const WizardBuilderPage: React.FC = () => {
                       </FormControl>
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                      <FormControl fullWidth>
+                      <FormControl fullWidth disabled={protectionStatus?.state === 'published'}>
                         <InputLabel>Difficulty Level</InputLabel>
                         <Select
                           value={wizard.difficulty_level || ''}
@@ -676,6 +844,7 @@ const WizardBuilderPage: React.FC = () => {
                         label="Estimated Time (minutes)"
                         value={wizard.estimated_time || ''}
                         onChange={(e) => setWizard({ ...wizard, estimated_time: parseInt(e.target.value) || undefined })}
+                        disabled={protectionStatus?.state === 'published'}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -685,6 +854,7 @@ const WizardBuilderPage: React.FC = () => {
                         value={wizard.icon || ''}
                         onChange={(e) => setWizard({ ...wizard, icon: e.target.value })}
                         placeholder="e.g., feedback, settings, person"
+                        disabled={protectionStatus?.state === 'published'}
                       />
                     </Grid>
                     <Grid item xs={12}>
@@ -695,14 +865,20 @@ const WizardBuilderPage: React.FC = () => {
                           onChange={(e) => setTagInput(e.target.value)}
                           onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
                           size="small"
+                          disabled={protectionStatus?.state === 'published'}
                         />
-                        <Button onClick={handleAddTag} variant="outlined" size="small">
+                        <Button onClick={handleAddTag} variant="outlined" size="small" disabled={protectionStatus?.state === 'published'}>
                           Add
                         </Button>
                       </Box>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
                         {wizard.tags.map((tag) => (
-                          <Chip key={tag} label={tag} onDelete={() => handleRemoveTag(tag)} size="small" />
+                          <Chip
+                            key={tag}
+                            label={tag}
+                            onDelete={protectionStatus?.state === 'published' ? undefined : () => handleRemoveTag(tag)}
+                            size="small"
+                          />
                         ))}
                       </Box>
                     </Grid>
@@ -723,6 +899,7 @@ const WizardBuilderPage: React.FC = () => {
                       <Switch
                         checked={wizard.is_published}
                         onChange={(e) => setWizard({ ...wizard, is_published: e.target.checked })}
+                        disabled={protectionStatus?.state === 'published'}
                       />
                     }
                     label="Published"
@@ -732,6 +909,7 @@ const WizardBuilderPage: React.FC = () => {
                       <Switch
                         checked={wizard.require_login}
                         onChange={(e) => setWizard({ ...wizard, require_login: e.target.checked })}
+                        disabled={protectionStatus?.state === 'published'}
                       />
                     }
                     label="Require Login"
@@ -741,6 +919,7 @@ const WizardBuilderPage: React.FC = () => {
                       <Switch
                         checked={wizard.allow_templates}
                         onChange={(e) => setWizard({ ...wizard, allow_templates: e.target.checked })}
+                        disabled={protectionStatus?.state === 'published'}
                       />
                     }
                     label="Allow Templates"
@@ -750,6 +929,7 @@ const WizardBuilderPage: React.FC = () => {
                       <Switch
                         checked={wizard.auto_save}
                         onChange={(e) => setWizard({ ...wizard, auto_save: e.target.checked })}
+                        disabled={protectionStatus?.state === 'published'}
                       />
                     }
                     label="Auto Save"
@@ -764,7 +944,12 @@ const WizardBuilderPage: React.FC = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6">Steps ({wizard.steps.length})</Typography>
-                    <Button startIcon={<AddIcon />} onClick={handleAddStep} variant="outlined">
+                    <Button
+                      startIcon={<AddIcon />}
+                      onClick={handleAddStep}
+                      variant="outlined"
+                      disabled={protectionStatus?.state === 'published'}
+                    >
                       Add Step
                     </Button>
                   </Box>
@@ -1083,6 +1268,127 @@ const WizardBuilderPage: React.FC = () => {
             disabled={deleteWizardMutation.isPending}
           >
             {deleteWizardMutation.isPending ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Clone Wizard Dialog */}
+      <Dialog
+        open={cloneDialog.open}
+        onClose={() => setCloneDialog({ open: false, name: '', description: '' })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Clone Wizard</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Create an editable copy of this wizard. The clone will be created as a draft with all steps, options, and dependencies preserved.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="New Wizard Name"
+            fullWidth
+            value={cloneDialog.name}
+            onChange={(e) => setCloneDialog({ ...cloneDialog, name: e.target.value })}
+            required
+          />
+          <TextField
+            margin="dense"
+            label="Description (Optional)"
+            fullWidth
+            multiline
+            rows={2}
+            value={cloneDialog.description}
+            onChange={(e) => setCloneDialog({ ...cloneDialog, description: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCloneDialog({ open: false, name: '', description: '' })}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCloneConfirm}
+            variant="contained"
+            disabled={!cloneDialog.name.trim() || cloneWizardMutation.isPending}
+            startIcon={<CloneIcon />}
+          >
+            {cloneWizardMutation.isPending ? 'Cloning...' : 'Clone Wizard'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Version Dialog */}
+      <Dialog
+        open={versionDialog.open}
+        onClose={() => setVersionDialog({ open: false, name: '' })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Create New Version</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Create a new version of this wizard. The version will be linked to the original and start as a draft for editing.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Version Name"
+            fullWidth
+            value={versionDialog.name}
+            onChange={(e) => setVersionDialog({ ...versionDialog, name: e.target.value })}
+            helperText="Leave empty to auto-generate name (e.g., Wizard Name v2)"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVersionDialog({ open: false, name: '' })}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleVersionConfirm}
+            variant="contained"
+            disabled={createVersionMutation.isPending}
+            startIcon={<VersionIcon />}
+          >
+            {createVersionMutation.isPending ? 'Creating...' : 'Create Version'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm Modify In-Use Wizard Dialog */}
+      <Dialog
+        open={confirmModifyDialog.open}
+        onClose={() => setConfirmModifyDialog({ open: false, runCount: 0 })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete All Runs & Continue?</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <strong>Warning:</strong> This will permanently delete all {confirmModifyDialog.runCount} run(s) for this wizard.
+          </Alert>
+          <DialogContentText>
+            This wizard is currently in use with active runs. To modify it, you must first delete all runs.
+            <br /><br />
+            <strong>Alternatives:</strong>
+            <ul>
+              <li>Clone this wizard to create an independent copy</li>
+              <li>Wait for users to complete their runs</li>
+            </ul>
+            Are you sure you want to delete all runs and proceed with modification?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmModifyDialog({ open: false, runCount: 0 })}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmModify}
+            color="error"
+            variant="contained"
+            disabled={deleteAllRunsMutation.isPending}
+          >
+            {deleteAllRunsMutation.isPending ? 'Deleting...' : 'Delete All Runs'}
           </Button>
         </DialogActions>
       </Dialog>

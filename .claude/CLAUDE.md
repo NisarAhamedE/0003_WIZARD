@@ -293,6 +293,92 @@ npm run format
 - Admin actions section for wizard builder
 - Visual lifecycle guide
 
+### Wizard Protection System (v1.0)
+
+**Status**: Backend 100% Complete, Frontend 100% Complete ✅
+
+The platform implements a comprehensive wizard protection system that prevents breaking changes to wizards that are in use or have stored runs.
+
+#### Three Protection States
+
+**1. Draft (lifecycle_state = 'draft')**
+- **Condition**: `total_runs == 0 AND stored_runs == 0`
+- **Permissions**: Full edit and delete access
+- **UI**: No badge, no warnings
+- **Actions**: Edit, Delete, Publish
+
+**2. In-Use (lifecycle_state = 'in_use')**
+- **Condition**: `total_runs > 0 AND stored_runs == 0`
+- **Permissions**: Edit with warning, delete with confirmation
+- **UI**: Orange "In Use" badge, warning banner
+- **Actions**: Edit (with warning), Delete All Runs, Publish
+
+**3. Published (lifecycle_state = 'published')**
+- **Condition**: `stored_runs > 0`
+- **Permissions**: Read-only, cannot edit or delete
+- **UI**: Red "Published" badge with lock icon, error banner
+- **Actions**: Clone, Create New Version, View Only
+
+#### Backend Implementation
+
+**Database Migration**:
+- 6 lifecycle columns added to `wizards` table:
+  - `lifecycle_state` VARCHAR(20) DEFAULT 'draft'
+  - `first_run_at` TIMESTAMP
+  - `first_stored_run_at` TIMESTAMP
+  - `is_archived` BOOLEAN
+  - `archived_at` TIMESTAMP
+  - `version_number` INTEGER
+  - `parent_wizard_id` UUID (foreign key)
+
+**Protection Service**:
+- `backend/app/services/wizard_protection.py` - WizardProtectionService
+- `get_wizard_state()` - Returns protection status
+- `can_edit()`, `can_delete()` - Permission checks
+- Calculates lifecycle state based on run counts
+
+**API Endpoints**:
+- `GET /api/v1/wizards/{id}/protection-status` - Get protection status
+- `POST /api/v1/wizards/{id}/clone` - Clone wizard
+- `POST /api/v1/wizards/{id}/create-version` - Create new version
+- `DELETE /api/v1/wizards/{id}/runs` - Delete all runs
+
+**CRUD Updates**:
+- `backend/app/crud/wizard.py` - Updated update() method
+- Fixed SQLAlchemy deleted object issue with `db.commit()` + `db.refresh()`
+- Proper handling of cloned wizard steps
+
+#### Frontend Implementation
+
+**React Hook**:
+- `frontend/src/hooks/useWizardProtection.ts` - useWizardProtection hook
+- React Query integration with 10-second cache
+- Auto-refresh on wizard changes
+
+**UI Components**:
+- Protection badges (Draft/In-Use/Published)
+- Warning banners with actionable buttons
+- Disabled form fields for published wizards
+- Clone and Create Version dialogs
+
+**Integration**:
+- `frontend/src/pages/admin/WizardBuilderPage.tsx` - Full integration
+- Real-time protection status checking
+- Conditional UI based on protection state
+
+#### Key Files
+
+**Backend**:
+- [backend/app/services/wizard_protection.py](../backend/app/services/wizard_protection.py) - Protection logic
+- [backend/app/api/v1/wizards.py](../backend/app/api/v1/wizards.py:83-103) - Protection endpoints
+- [backend/app/crud/wizard.py](../backend/app/crud/wizard.py:100-109) - Update method fix
+- [backend/migrations/add_wizard_lifecycle_fields.sql](../backend/migrations/add_wizard_lifecycle_fields.sql) - DB migration
+
+**Frontend**:
+- [frontend/src/hooks/useWizardProtection.ts](../frontend/src/hooks/useWizardProtection.ts) - React Query hook
+- [frontend/src/pages/admin/WizardBuilderPage.tsx](../frontend/src/pages/admin/WizardBuilderPage.tsx) - UI integration
+- [frontend/src/services/wizard.service.ts](../frontend/src/services/wizard.service.ts) - API service methods
+
 ### Completed Features
 
 #### All 12 Selection Types

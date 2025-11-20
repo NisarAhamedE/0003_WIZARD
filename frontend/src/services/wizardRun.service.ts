@@ -198,6 +198,13 @@ class WizardRunService {
     return response.data;
   }
 
+  /**
+   * Clear all responses for a run (for update operations)
+   */
+  async clearAllResponses(runId: string): Promise<void> {
+    await api.delete(`${this.baseUrl}/${runId}/responses`);
+  }
+
   // ============================================================================
   // Option Set Responses
   // ============================================================================

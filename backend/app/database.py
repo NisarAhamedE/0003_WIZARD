@@ -37,6 +37,6 @@ def init_db():
     Should be called on application startup.
     """
     # Import all models here to ensure they're registered
-    from app.models import user, wizard, session, template, analytics  # noqa
+    from app.models import user, wizard, wizard_run, wizard_template, analytics  # noqa
 
     Base.metadata.create_all(bind=engine)

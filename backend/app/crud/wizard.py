@@ -98,9 +98,14 @@ class WizardCRUD:
 
         # Handle steps update if provided
         if obj_in.steps is not None:
+            wizard_id = db_obj.id
+
             # Delete existing steps (CASCADE will handle option_sets and options)
-            db.query(Step).filter(Step.wizard_id == db_obj.id).delete()
-            db.flush()
+            db.query(Step).filter(Step.wizard_id == wizard_id).delete()
+            db.commit()
+
+            # Refresh the wizard object to clear deleted Step references from memory
+            db.refresh(db_obj)
 
             # Create new steps
             for step_data in obj_in.steps:
@@ -170,6 +175,147 @@ class WizardCRUD:
         if created_by:
             query = query.filter(Wizard.created_by == created_by)
         return query.count()
+
+    def clone_wizard(
+        self,
+        db: Session,
+        wizard_id: UUID,
+        new_name: str,
+        created_by: UUID,
+        new_description: Optional[str] = None
+    ) -> Optional[Wizard]:
+        """
+        Clone an existing wizard with all its steps, option sets, options, and dependencies.
+
+        Args:
+            db: Database session
+            wizard_id: UUID of the wizard to clone
+            new_name: Name for the new wizard
+            created_by: UUID of the user creating the clone
+            new_description: Optional description override
+
+        Returns:
+            The cloned wizard with all relationships, or None if source wizard not found
+        """
+        import uuid
+
+        # Get the source wizard with all relationships
+        source_wizard = self.get(db, wizard_id)
+        if not source_wizard:
+            return None
+
+        # Create new wizard (copy basic fields)
+        new_wizard = Wizard(
+            id=uuid.uuid4(),
+            name=new_name,
+            description=new_description or source_wizard.description,
+            category_id=source_wizard.category_id,
+            created_by=created_by,
+            icon=source_wizard.icon,
+            cover_image=source_wizard.cover_image,
+            is_published=False,  # Clones start unpublished
+            is_active=True,
+            allow_templates=source_wizard.allow_templates,
+            require_login=source_wizard.require_login,
+            allow_anonymous=source_wizard.allow_anonymous,
+            auto_save=source_wizard.auto_save,
+            auto_save_interval=source_wizard.auto_save_interval,
+            estimated_time=source_wizard.estimated_time,
+            difficulty_level=source_wizard.difficulty_level,
+            tags=source_wizard.tags,
+            lifecycle_state='draft',  # New wizard starts as draft
+            version_number=1
+        )
+        db.add(new_wizard)
+        db.flush()
+
+        # Map old IDs to new IDs for relationship reconstruction
+        step_id_map = {}
+        option_set_id_map = {}
+        option_id_map = {}
+
+        # Clone steps
+        for source_step in source_wizard.steps:
+            new_step = Step(
+                id=uuid.uuid4(),
+                wizard_id=new_wizard.id,
+                name=source_step.name,
+                description=source_step.description,
+                help_text=source_step.help_text,
+                step_order=source_step.step_order,
+                is_required=source_step.is_required,
+                is_skippable=source_step.is_skippable,
+                allow_back_navigation=source_step.allow_back_navigation,
+                layout=source_step.layout,
+                custom_styles=source_step.custom_styles,
+                validation_rules=source_step.validation_rules
+            )
+            db.add(new_step)
+            db.flush()
+            step_id_map[source_step.id] = new_step.id
+
+            # Clone option sets for this step
+            for source_option_set in source_step.option_sets:
+                new_option_set = OptionSet(
+                    id=uuid.uuid4(),
+                    step_id=new_step.id,
+                    name=source_option_set.name,
+                    description=source_option_set.description,
+                    selection_type=source_option_set.selection_type,
+                    is_required=source_option_set.is_required,
+                    min_selections=source_option_set.min_selections,
+                    max_selections=source_option_set.max_selections,
+                    min_value=source_option_set.min_value,
+                    max_value=source_option_set.max_value,
+                    regex_pattern=source_option_set.regex_pattern,
+                    custom_validation=source_option_set.custom_validation,
+                    display_order=source_option_set.display_order,
+                    placeholder=source_option_set.placeholder,
+                    help_text=source_option_set.help_text,
+                    step_increment=source_option_set.step_increment
+                )
+                db.add(new_option_set)
+                db.flush()
+                option_set_id_map[source_option_set.id] = new_option_set.id
+
+                # Clone options for this option set
+                for source_option in source_option_set.options:
+                    new_option = Option(
+                        id=uuid.uuid4(),
+                        option_set_id=new_option_set.id,
+                        label=source_option.label,
+                        value=source_option.value,
+                        description=source_option.description,
+                        display_order=source_option.display_order,
+                        icon=source_option.icon,
+                        image_url=source_option.image_url,
+                        is_default=source_option.is_default,
+                        is_recommended=source_option.is_recommended,
+                        is_active=source_option.is_active,
+                        option_metadata=source_option.option_metadata
+                    )
+                    db.add(new_option)
+                    db.flush()
+                    option_id_map[source_option.id] = new_option.id
+
+        # Clone option dependencies (now that all options exist)
+        for source_step in source_wizard.steps:
+            for source_option_set in source_step.option_sets:
+                for source_option in source_option_set.options:
+                    for source_dependency in source_option.dependencies:
+                        new_dependency = OptionDependency(
+                            id=uuid.uuid4(),
+                            option_id=option_id_map[source_dependency.option_id],
+                            depends_on_option_id=option_id_map[source_dependency.depends_on_option_id],
+                            dependency_type=source_dependency.dependency_type
+                        )
+                        db.add(new_dependency)
+
+        db.commit()
+        db.refresh(new_wizard)
+
+        # Return the cloned wizard with all relationships loaded
+        return self.get(db, new_wizard.id)
 
 
 class StepCRUD:

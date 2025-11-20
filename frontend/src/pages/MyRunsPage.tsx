@@ -84,7 +84,7 @@ const MyRunsPage: React.FC = () => {
 
   const handleEditRun = (run: WizardRun) => {
     // Navigate to wizard player in edit mode with the stored run
-    navigate(`/wizard/${run.wizard_id}?run_id=${run.id}`);
+    navigate(`/wizard/${run.wizard_id}?session=${run.id}`);
   };
 
   const handleDeleteRun = (run: WizardRun) => {

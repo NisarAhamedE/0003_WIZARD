@@ -65,4 +65,49 @@ export const wizardService = {
   async deleteOptionDependency(dependencyId: string): Promise<void> {
     await api.delete(`/wizards/dependencies/${dependencyId}`);
   },
+
+  // Wizard Protection & Lifecycle Methods
+  async getProtectionStatus(wizardId: string): Promise<{
+    state: 'draft' | 'in_use' | 'published';
+    can_edit: boolean;
+    can_delete: boolean;
+    total_runs: number;
+    stored_runs: number;
+    in_progress_runs: number;
+    completed_runs: number;
+    message: string;
+    actions: string[];
+  }> {
+    const response = await api.get(`/wizards/${wizardId}/protection-status`);
+    return response.data;
+  },
+
+  async cloneWizard(wizardId: string, newName: string, newDescription?: string): Promise<Wizard> {
+    const response = await api.post<Wizard>(`/wizards/${wizardId}/clone`, null, {
+      params: { new_name: newName, new_description: newDescription },
+    });
+    return response.data;
+  },
+
+  async createWizardVersion(wizardId: string, newName?: string): Promise<Wizard> {
+    const response = await api.post<Wizard>(`/wizards/${wizardId}/create-version`, null, {
+      params: { new_name: newName },
+    });
+    return response.data;
+  },
+
+  async archiveWizard(wizardId: string): Promise<void> {
+    await api.post(`/wizards/${wizardId}/archive`);
+  },
+
+  async unarchiveWizard(wizardId: string): Promise<void> {
+    await api.post(`/wizards/${wizardId}/unarchive`);
+  },
+
+  async deleteAllWizardRuns(wizardId: string): Promise<{ message: string; count: number }> {
+    const response = await api.post(`/wizards/${wizardId}/delete-all-runs`, null, {
+      params: { confirm: true },
+    });
+    return response.data;
+  },
 };

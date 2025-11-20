@@ -35,6 +35,7 @@ export interface WizardRunUpdate {
   run_name?: string;
   run_description?: string;
   is_favorite?: boolean;
+  is_stored?: boolean;
   tags?: string[];
   metadata?: Record<string, any>;
 }

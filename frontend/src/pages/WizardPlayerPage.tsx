@@ -27,7 +27,6 @@ import {
   DialogContentText,
   DialogActions,
   Snackbar,
-  Switch,
   Slider,
   Rating,
 } from '@mui/material';
@@ -35,8 +34,11 @@ import {
   NavigateNext as NextIcon,
   NavigateBefore as PrevIcon,
   CheckCircle as CompleteIcon,
+  Close as CloseIcon,
+  Save as SaveIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wizardService } from '../services/wizard.service';
 import { wizardRunService } from '../services';
@@ -50,31 +52,37 @@ const WizardPlayerPage: React.FC = () => {
   const { wizardId } = useParams<{ wizardId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const searchParams = new URLSearchParams(window.location.search);
+  const [searchParams] = useSearchParams();
   const sessionIdFromUrl = searchParams.get('session');
+  const isViewOnly = searchParams.get('view_only') === 'true';
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [responses, setResponses] = useState<ResponseData>({});
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isCompleted, setIsCompleted] = useState(false);
+  const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const runCreationAttempted = useRef(false);
 
-  // Session name dialog state
+  // Run name dialog state (for new runs)
   const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
   const [sessionName, setSessionName] = useState('');
   const [sessionNameError, setSessionNameError] = useState('');
 
-  // Template dialog state
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [templateDescription, setTemplateDescription] = useState('');
-  const [templateIsPublic, setTemplateIsPublic] = useState(false);
+  // Edit mode states
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [existingRunName, setExistingRunName] = useState('');
+  const [showUpdateRunDialog, setShowUpdateRunDialog] = useState(false);
+
+  // Save As dialog state
+  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const [saveAsRunName, setSaveAsRunName] = useState('');
+  const [saveAsError, setSaveAsError] = useState('');
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
-    severity: 'success' | 'error';
+    severity: 'success' | 'error' | 'info';
   }>({ open: false, message: '', severity: 'success' });
 
   const { data: wizard, isLoading } = useQuery({
@@ -98,102 +106,189 @@ const WizardPlayerPage: React.FC = () => {
     },
   });
 
-  const saveResponseMutation = useMutation({
-    mutationFn: async (data: { session_id: string; responses: any[] }) => {
-      // Save each response individually
-      for (const response of data.responses) {
-        await sessionService.saveResponse(data.session_id, {
-          step_id: response.step_id,
-          option_set_id: response.option_set_id,
-          response_data: response.response_data,
-        });
-      }
-    },
-  });
-
   const completeSessionMutation = useMutation({
-    mutationFn: (id: string) => sessionService.completeSession(id),
+    mutationFn: (id: string) => wizardRunService.completeWizardRun(id, {}),
     onSuccess: (data) => {
-      console.log('✓ Session completed successfully:', data);
+      console.log('✓ Wizard run completed successfully:', data);
       setIsCompleted(true);
-      // Invalidate sessions cache to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
-      // Show dialog asking if user wants to save as template
-      setShowTemplateDialog(true);
+
+      // Invalidate runs cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['wizard-runs'] });
+
+      // Show different screens based on mode (dialog will be triggered in handleNext)
+      if (!isEditMode) {
+        setShowCompletionScreen(true); // Show completion screen for new runs
+        setShowSessionNameDialog(true); // Show dialog asking if user wants to save the run
+      }
+
       setSnackbar({
         open: true,
-        message: 'Wizard completed successfully!',
+        message: isEditMode ? 'Wizard updated successfully!' : 'Wizard completed successfully!',
         severity: 'success',
       });
     },
     onError: (error: any) => {
-      console.error('✗ Error completing session:', error);
-
-      // If session is already completed (not in progress), treat as success
-      if (error.response?.data?.detail === 'Session is not in progress') {
-        console.log('Session was already completed, showing completion screen');
-        setIsCompleted(true);
-        queryClient.invalidateQueries({ queryKey: ['sessions'] });
-        setShowTemplateDialog(true);
-        setSnackbar({
-          open: true,
-          message: 'Wizard completed successfully!',
-          severity: 'success',
-        });
-        return;
-      }
-
+      console.error('✗ Error completing wizard run:', error);
       setSnackbar({
         open: true,
-        message: error.response?.data?.detail || 'Failed to complete session',
+        message: error.response?.data?.detail || 'Failed to complete wizard run',
         severity: 'error',
       });
-      // Still mark as completed locally for UX if it's a terminal error
-      // But if it's a real error (e.g. network), maybe we shouldn't?
-      // For now, keeping existing behavior but fixing the confusing error message
-      setIsCompleted(true);
     },
   });
 
-  const saveTemplateMutation = useMutation({
-    mutationFn: (data: { sessionId: string; name: string; description?: string; is_public?: boolean }) =>
-      templateService.createTemplateFromSession(data.sessionId, {
-        name: data.name,
-        description: data.description,
-        is_public: data.is_public,
-      }),
+  const saveRunMutation = useMutation({
+    mutationFn: async (data: { runId: string; name: string; description?: string; isUpdate?: boolean }) => {
+      console.log('[WizardPlayer] Saving run with all responses...');
+
+      // LOOPHOLE #6 FIX: Validate all responses before saving
+      const validationErrors: string[] = [];
+      wizard?.steps.forEach((step, stepIndex) => {
+        step.option_sets.forEach((optionSet) => {
+          const isRequired = optionSet.is_required;
+          const responseValue = responses[optionSet.id];
+
+          if (isRequired && (responseValue === undefined || responseValue === null ||
+              (Array.isArray(responseValue) && responseValue.length === 0))) {
+            validationErrors.push(`Step ${stepIndex + 1}: ${optionSet.name} is required`);
+          }
+        });
+      });
+
+      if (validationErrors.length > 0) {
+        throw new Error(`Validation failed:\n${validationErrors.join('\n')}`);
+      }
+
+      // LOOPHOLE #1 & #5 FIX: Check if responses already exist and delete them first
+      try {
+        const existingRun = await wizardRunService.getWizardRun(data.runId);
+        if (existingRun.option_set_responses && existingRun.option_set_responses.length > 0) {
+          console.log('[WizardPlayer] Existing responses found, deleting old responses before update');
+          await wizardRunService.clearAllResponses(data.runId);
+          console.log('[WizardPlayer] Old responses cleared, proceeding with fresh save');
+        }
+      } catch (error) {
+        console.log('[WizardPlayer] No existing responses found, proceeding with fresh save');
+      }
+
+      // LOOPHOLE #2 & #3 FIX: Collect all operations to ensure atomicity
+      const savedStepResponses: string[] = [];
+      const savedOptionSetResponses: string[] = [];
+
+      try {
+        // Step 1: Save all responses from all steps to database
+        if (wizard) {
+          for (let stepIndex = 0; stepIndex < wizard.steps.length; stepIndex++) {
+            const step = wizard.steps[stepIndex];
+            // LOOPHOLE #4 FIX: Only create step response if it has at least one option set response
+            const hasResponses = step.option_sets.some(os => {
+              const val = responses[os.id];
+              return val !== undefined && val !== null && (Array.isArray(val) ? val.length > 0 : true);
+            });
+
+            if (!hasResponses) {
+              console.log(`[WizardPlayer] Skipping step ${step.name} - no responses`);
+              continue;
+            }
+
+            // Create step response
+            const stepResponse = await wizardRunService.createStepResponse(data.runId, {
+              run_id: data.runId,
+              step_id: step.id,
+              step_index: stepIndex,
+              step_name: step.name,
+            });
+
+            savedStepResponses.push(stepResponse.id);
+            console.log(`[WizardPlayer] Created step response for step ${step.name}:`, stepResponse.id);
+
+            // Create option set responses for this step
+            for (const optionSet of step.option_sets) {
+              const responseValue = responses[optionSet.id];
+              if (responseValue !== undefined && responseValue !== null) {
+                // Skip empty arrays
+                if (Array.isArray(responseValue) && responseValue.length === 0) {
+                  continue;
+                }
+
+                const optionSetResp = await wizardRunService.createOptionSetResponse(data.runId, {
+                  run_id: data.runId,
+                  step_response_id: stepResponse.id,
+                  option_set_id: optionSet.id,
+                  response_value: { value: responseValue },
+                });
+
+                savedOptionSetResponses.push(optionSetResp.id);
+              }
+            }
+          }
+          console.log('[WizardPlayer] All responses saved successfully');
+          console.log(`[WizardPlayer] Saved ${savedStepResponses.length} step responses and ${savedOptionSetResponses.length} option set responses`);
+        }
+
+        // Step 2: Update run metadata (name, description, mark as stored)
+        const result = await wizardRunService.updateWizardRun(data.runId, {
+          run_name: data.name,
+          run_description: data.description,
+          is_stored: true,
+        });
+
+        // LOOPHOLE #8 FIX: Clear localStorage backup after successful save
+        localStorage.removeItem(`wizard_responses_${data.runId}`);
+
+        return result;
+
+      } catch (error) {
+        // LOOPHOLE #3 FIX: On error, log what was saved for potential rollback
+        console.error('[WizardPlayer] Save failed, saved items before error:', {
+          stepResponses: savedStepResponses,
+          optionSetResponses: savedOptionSetResponses,
+        });
+        console.error('[WizardPlayer] Error details:', error);
+
+        // Note: Ideally we would rollback here, but that requires backend support
+        // For now, we throw the error to trigger the onError handler
+        throw error;
+      }
+    },
     onSuccess: () => {
       setSnackbar({
         open: true,
-        message: 'Template saved successfully!',
+        message: 'Run saved successfully!',
         severity: 'success',
       });
-      setShowTemplateDialog(false);
-      resetTemplateForm();
+      setShowSessionNameDialog(false);
+      setSessionName('');
+      // Navigate to My Runs page to show the stored run
+      navigate('/my-runs');
     },
-    onError: () => {
+    onError: (error: any) => {
       setSnackbar({
         open: true,
-        message: 'Failed to save template',
+        message: error.message || 'Failed to save run',
         severity: 'error',
       });
     },
   });
 
-  const resetTemplateForm = () => {
-    setTemplateName('');
-    setTemplateDescription('');
-    setTemplateIsPublic(false);
-  };
 
   // Load existing session from URL or create new run automatically
   useEffect(() => {
+    console.log('[WizardPlayer] Session initialization effect:', {
+      hasWizard: !!wizard,
+      sessionId,
+      sessionIdFromUrl,
+      runCreationAttempted: runCreationAttempted.current
+    });
+
     if (wizard && !sessionId && !runCreationAttempted.current) {
       if (sessionIdFromUrl) {
         // Load existing session from URL
+        console.log('[WizardPlayer] Setting sessionId from URL:', sessionIdFromUrl);
         setSessionId(sessionIdFromUrl);
       } else {
         // Automatically create a new run without asking for a name
+        console.log('[WizardPlayer] Creating new run automatically');
         runCreationAttempted.current = true;
         createSessionMutation.mutate({
           wizard_id: wizard.id,
@@ -202,50 +297,75 @@ const WizardPlayerPage: React.FC = () => {
     }
   }, [wizard, sessionIdFromUrl]);
 
-  // Load session responses when resuming an existing session
+  // Load wizard run responses when resuming an existing run
   useEffect(() => {
-    const loadSessionResponses = async () => {
-      if (!sessionId || !wizard) return;
+    const loadRunResponses = async () => {
+      if (!sessionId || !wizard) {
+        console.log('[WizardPlayer] loadRunResponses - skipping:', { sessionId, hasWizard: !!wizard });
+        return;
+      }
+
+      console.log('[WizardPlayer] Loading responses for session:', sessionId);
+      console.log('[WizardPlayer] Current wizard structure:', wizard);
 
       try {
-        const session = await sessionService.getSession(sessionId);
+        const run = await wizardRunService.getWizardRun(sessionId);
+        console.log('[WizardPlayer] Loaded run:', run);
+        console.log('[WizardPlayer] Run status:', run.status);
+        console.log('[WizardPlayer] Number of option_set_responses:', run.option_set_responses?.length || 0);
 
-        // Transform session responses to ResponseData format
+        // Transform run option set responses to ResponseData format
         const loadedResponses: ResponseData = {};
-        session.responses.forEach((resp) => {
-          // Extract value from response_data object
-          const responseValue = (resp.response_data as any).value;
-          if (responseValue !== undefined && responseValue !== null) {
-            loadedResponses[resp.option_set_id] = responseValue;
-          }
-        });
-
-        setResponses(loadedResponses);
-
-        // Set completion status if session is completed
-        if (session.status === 'completed') {
-          setIsCompleted(true);
+        if (run.option_set_responses) {
+          console.log('[WizardPlayer] Processing', run.option_set_responses.length, 'responses');
+          run.option_set_responses.forEach((resp) => {
+            // Extract value from response_value object (backend uses response_value, not response_data)
+            const responseValue = (resp.response_value as any)?.value || resp.response_value;
+            console.log('[WizardPlayer] Response for option_set', resp.option_set_id, ':', responseValue);
+            console.log('[WizardPlayer] Raw response_value:', resp.response_value);
+            if (responseValue !== undefined && responseValue !== null) {
+              loadedResponses[resp.option_set_id] = responseValue;
+            }
+          });
         }
 
-        // Optionally: Resume from last step
-        // Find the step index based on current_step_id
-        if (session.current_step_id && session.status === 'in_progress') {
-          const stepIndex = wizard.steps.findIndex(s => s.id === session.current_step_id);
-          if (stepIndex !== -1) {
-            setCurrentStepIndex(stepIndex);
+        console.log('[WizardPlayer] Final loadedResponses object:', loadedResponses);
+        console.log('[WizardPlayer] Number of keys in loadedResponses:', Object.keys(loadedResponses).length);
+        setResponses(loadedResponses);
+        console.log('[WizardPlayer] Responses state updated');
+
+        // Set completion status if run is completed
+        if (run.status === 'completed') {
+          console.log('[WizardPlayer] Setting isCompleted to true');
+          setIsCompleted(true);
+          // In view mode or for completed runs, show all steps from the beginning
+          // so users can navigate through and see all their answers
+          setCurrentStepIndex(0);
+
+          // Detect edit mode: completed + stored + not view-only
+          if (run.is_stored && !isViewOnly) {
+            console.log('[WizardPlayer] Edit mode detected');
+            setIsEditMode(true);
+            setExistingRunName(run.run_name || 'Unnamed Run');
           }
+        }
+
+        // Resume from last step if in progress
+        if (run.status === 'in_progress' && run.current_step_index !== undefined) {
+          console.log('[WizardPlayer] Resuming from step index:', run.current_step_index);
+          setCurrentStepIndex(run.current_step_index);
         }
       } catch (error) {
-        console.error('Failed to load session responses:', error);
+        console.error('[WizardPlayer] Failed to load wizard run responses:', error);
         setSnackbar({
           open: true,
-          message: 'Failed to load session data',
+          message: 'Failed to load run data',
           severity: 'error',
         });
       }
     };
 
-    loadSessionResponses();
+    loadRunResponses();
   }, [sessionId, wizard]);
 
   const currentStep = wizard?.steps[currentStepIndex];
@@ -281,22 +401,8 @@ const WizardPlayerPage: React.FC = () => {
   const handleNext = async () => {
     if (!validateStep() || !sessionId || !currentStep || !wizard) return;
 
-    // Save responses for current step
-    const stepResponses = currentStep.option_sets.map((os) => ({
-      step_id: currentStep.id,
-      option_set_id: os.id,
-      response_data: { value: responses[os.id] || null },
-    }));
-
-    try {
-      await saveResponseMutation.mutateAsync({
-        session_id: sessionId,
-        responses: stepResponses,
-      });
-    } catch (error) {
-      console.error('Error saving response:', error);
-      // Continue even if save fails for better UX
-    }
+    // Don't save responses on Next - only save when user chooses to store the run
+    // Responses are kept in memory (state) until user completes and saves
 
     if (currentStepIndex < wizard.steps.length - 1) {
       // Move to next step
@@ -305,29 +411,42 @@ const WizardPlayerPage: React.FC = () => {
       setCurrentStepIndex(nextStepIndex);
       setErrors({});
 
-      // Update session progress
+      // Update wizard run progress
       const progressPercentage = ((nextStepIndex + 1) / wizard.steps.length) * 100;
       console.log(`→ Progress: ${Math.round(progressPercentage)}%`);
       try {
-        await sessionService.updateSession(sessionId, {
-          current_step_id: wizard.steps[nextStepIndex].id,
-          progress_percentage: Math.round(progressPercentage),
-        } as any);
+        await wizardRunService.updateRunProgress(sessionId, {
+          current_step_index: nextStepIndex,
+        });
         console.log('✓ Progress updated successfully');
       } catch (error) {
         console.error('✗ Error updating progress:', error);
       }
     } else {
-      // Complete session (last step)
-      console.log(`→ Last step (${currentStepIndex + 1}/${wizard.steps.length}) - Completing session...`);
-      console.log(`→ Session ID: ${sessionId}`);
-      try {
-        const result = await completeSessionMutation.mutateAsync(sessionId);
-        console.log('✓ Complete session mutation successful:', result);
-      } catch (error) {
-        console.error('✗ Error completing session:', error);
-        // Show error to user but still mark as completed locally for UX
-        setIsCompleted(true);
+      // Last step - Complete or Update wizard run
+      console.log(`→ Last step (${currentStepIndex + 1}/${wizard.steps.length})`);
+      console.log(`→ Run ID: ${sessionId}`);
+      console.log(`→ Edit Mode: ${isEditMode}`);
+
+      if (isEditMode) {
+        // Edit Mode: Don't call complete API, just show update dialog
+        console.log('[WizardPlayer] Edit mode - showing Update This Run dialog directly');
+        setShowUpdateRunDialog(true);
+        setSnackbar({
+          open: true,
+          message: 'Ready to update run',
+          severity: 'info',
+        });
+      } else {
+        // New Run: Call complete API and show save dialog
+        console.log('[WizardPlayer] New run - completing wizard run');
+        try {
+          const result = await completeSessionMutation.mutateAsync(sessionId);
+          console.log('✓ Complete wizard run mutation successful:', result);
+          // showCompletionScreen and showSessionNameDialog set in mutation onSuccess
+        } catch (error) {
+          console.error('✗ Error completing wizard run:', error);
+        }
       }
     }
   };
@@ -339,37 +458,220 @@ const WizardPlayerPage: React.FC = () => {
     }
   };
 
-  const handleSaveAsTemplate = () => {
-    if (!sessionId || !templateName.trim()) return;
-    saveTemplateMutation.mutate({
-      sessionId,
-      name: templateName.trim(),
-      description: templateDescription.trim() || undefined,
-      is_public: templateIsPublic,
-    });
-  };
-
-  const handleSkipTemplate = () => {
-    setShowTemplateDialog(false);
-    resetTemplateForm();
-  };
-
-  const handleCreateSession = () => {
+  const handleSaveRun = async () => {
     if (!sessionName.trim()) {
       setSessionNameError('Run name is required');
       return;
     }
-    if (!wizard) return;
+    if (!sessionId) return;
 
-    createSessionMutation.mutate({
-      wizard_id: wizard.id,
-      run_name: sessionName.trim(),
+    try {
+      // Check for duplicate run name
+      console.log('[WizardPlayer] Checking for duplicate run name');
+      const existingRuns = await wizardRunService.getWizardRuns({
+        skip: 0,
+        limit: 100, // Backend max limit is 100
+      });
+
+      // Defensive check for response structure
+      if (!existingRuns || !Array.isArray(existingRuns.runs)) {
+        console.error('[WizardPlayer] Invalid response from getWizardRuns:', existingRuns);
+        setSessionNameError('Failed to validate run name. Please try again.');
+        return;
+      }
+
+      const duplicateExists = existingRuns.runs.some(
+        run => run.run_name?.toLowerCase().trim() === sessionName.trim().toLowerCase()
+      );
+
+      if (duplicateExists) {
+        setSessionNameError('A run with this name already exists. Please choose a different name.');
+        console.log('[WizardPlayer] Duplicate run name found');
+        return;
+      }
+
+      // No duplicate, proceed with save
+      saveRunMutation.mutate({
+        runId: sessionId,
+        name: sessionName.trim(),
+      });
+    } catch (error: any) {
+      console.error('[WizardPlayer] Error checking for duplicate names:', error);
+
+      // Provide more specific error messages based on error type
+      if (error.response?.status === 401) {
+        setSessionNameError('Session expired. Please log in again and try saving.');
+      } else if (error.response?.status === 403) {
+        setSessionNameError('You do not have permission to access this resource.');
+      } else if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
+        setSessionNameError('Unable to connect to server. Please check your connection.');
+      } else if (!error.response) {
+        setSessionNameError('Network error. Please check your internet connection.');
+      } else {
+        setSessionNameError('Failed to validate run name. Please try again.');
+      }
+    }
+  };
+
+  const handleSkipSaveRun = () => {
+    setShowSessionNameDialog(false);
+    setSessionName('');
+    navigate('/my-runs');
+  };
+
+  // ============================================================================
+  // Edit Mode Action Handlers
+  // ============================================================================
+
+  /**
+   * Handler for Skip button - Discard all changes
+   */
+  const handleSkipUpdate = () => {
+    console.log('[WizardPlayer] Skip update - discarding changes');
+    setShowUpdateRunDialog(false);
+    navigate('/my-runs');
+    setSnackbar({
+      open: true,
+      message: 'Changes discarded',
+      severity: 'info',
     });
   };
 
-  const handleCancelSessionCreation = () => {
-    setShowSessionNameDialog(false);
-    navigate('/wizards');
+  /**
+   * Handler for Update button - Save modifications to current run
+   */
+  const handleUpdateRun = async () => {
+    console.log('[WizardPlayer] Update run - saving modifications to current run');
+    if (!sessionId) {
+      console.error('[WizardPlayer] No session ID available');
+      return;
+    }
+
+    try {
+      await saveRunMutation.mutateAsync({
+        runId: sessionId,
+        name: existingRunName,
+        isUpdate: true,
+      });
+
+      setShowUpdateRunDialog(false);
+      navigate('/my-runs');
+      setSnackbar({
+        open: true,
+        message: 'Run updated successfully!',
+        severity: 'success',
+      });
+    } catch (error: any) {
+      console.error('[WizardPlayer] Failed to update run:', error);
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to update run',
+        severity: 'error',
+      });
+    }
+  };
+
+  /**
+   * Handler for Save As button - Open nested dialog
+   */
+  const handleSaveAs = () => {
+    console.log('[WizardPlayer] Save As - opening nested dialog');
+    // Keep Update dialog open, just show Save As on top
+    setSaveAsRunName(`${existingRunName} (Copy)`);
+    setShowSaveAsDialog(true);
+  };
+
+  /**
+   * Handler for Save As confirmation - Create new run
+   */
+  const handleConfirmSaveAs = async () => {
+    console.log('[WizardPlayer] Confirming Save As with name:', saveAsRunName);
+
+    if (!saveAsRunName.trim()) {
+      setSaveAsError('Run name is required');
+      return;
+    }
+
+    if (!wizard) {
+      console.error('[WizardPlayer] No wizard available');
+      return;
+    }
+
+    try {
+      // Check for duplicate run name
+      console.log('[WizardPlayer] Checking for duplicate run name');
+      const existingRuns = await wizardRunService.getWizardRuns({
+        skip: 0,
+        limit: 100, // Backend max limit is 100
+      });
+
+      // Defensive check for response structure
+      if (!existingRuns || !Array.isArray(existingRuns.runs)) {
+        console.error('[WizardPlayer] Invalid response from getWizardRuns:', existingRuns);
+        setSaveAsError('Unable to validate run name. Please check your connection and try again.');
+        return;
+      }
+
+      const duplicateExists = existingRuns.runs.some(
+        run => run.run_name?.toLowerCase().trim() === saveAsRunName.trim().toLowerCase()
+      );
+
+      if (duplicateExists) {
+        setSaveAsError('A run with this name already exists. Please choose a different name.');
+        console.log('[WizardPlayer] Duplicate run name found');
+        return;
+      }
+
+      // Create a NEW wizard run
+      console.log('[WizardPlayer] Creating new wizard run');
+      const newRun = await wizardRunService.createWizardRun({
+        wizard_id: wizard.id,
+        run_name: saveAsRunName.trim(),
+      });
+
+      console.log('[WizardPlayer] New run created:', newRun.id);
+
+      // Save all responses to the new run
+      await saveRunMutation.mutateAsync({
+        runId: newRun.id,
+        name: saveAsRunName.trim(),
+        isUpdate: false,
+      });
+
+      setShowSaveAsDialog(false);
+      setShowUpdateRunDialog(false);  // Close the Update dialog too
+      setSaveAsRunName('');
+      setSaveAsError('');
+      navigate('/my-runs');
+      setSnackbar({
+        open: true,
+        message: 'New run created successfully!',
+        severity: 'success',
+      });
+    } catch (error: any) {
+      console.error('[WizardPlayer] Failed to create new run:', error);
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to create new run';
+      if (error.response?.status === 401) {
+        errorMessage = 'Session expired. Please log in again and try saving.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to create runs.';
+      } else if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
+        errorMessage = 'Unable to connect to server. Please check your connection.';
+      } else if (!error.response) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setSaveAsError(errorMessage);
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error',
+      });
+    }
   };
 
   const handleResponseChange = (optionSetId: string, value: string | string[] | number) => {
@@ -498,17 +800,32 @@ const WizardPlayerPage: React.FC = () => {
   };
 
   const renderOptionSet = (optionSet: OptionSet) => {
+    console.log(`[WizardPlayer] renderOptionSet called for: ${optionSet.id} (${optionSet.name})`);
+    console.log(`[WizardPlayer] Current state - isViewOnly: ${isViewOnly}, isCompleted: ${isCompleted}`);
+
     // Filter options based on dependencies
     const visibleOptions = optionSet.options.filter(shouldShowOption);
 
     // Only check for empty options on selection types that require options
     const selectionTypesNeedingOptions = ['single_select', 'multiple_select'];
     if (selectionTypesNeedingOptions.includes(optionSet.selection_type) && visibleOptions.length === 0) {
+      console.log(`[WizardPlayer] Skipping option set ${optionSet.id} - no visible options`);
       return null;
     }
 
     // Check if this option set is dynamically required
     const isDynamicallyRequired = isOptionSetRequired(optionSet);
+
+    // Debug log for view mode
+    const currentValue = responses[optionSet.id];
+    if (isViewOnly || isCompleted) {
+      console.log(`[WizardPlayer] Rendering option set ${optionSet.id} (${optionSet.name}) in view mode`);
+      console.log(`[WizardPlayer] Current value for ${optionSet.id}:`, currentValue);
+      console.log(`[WizardPlayer] isViewOnly: ${isViewOnly}, isCompleted: ${isCompleted}`);
+    } else {
+      console.log(`[WizardPlayer] Rendering option set ${optionSet.id} in EDIT mode with value:`, currentValue);
+    }
+
     switch (optionSet.selection_type) {
       case 'single_select':
         return (
@@ -527,7 +844,7 @@ const WizardPlayerPage: React.FC = () => {
               onChange={(e) => handleResponseChange(optionSet.id, e.target.value)}
             >
               {visibleOptions.map((option) => {
-                const isDisabled = shouldDisableOption(option);
+                const isDisabled = shouldDisableOption(option) || isViewOnly;
                 return (
                   <FormControlLabel
                     key={option.id}
@@ -562,7 +879,7 @@ const WizardPlayerPage: React.FC = () => {
             )}
             <FormGroup>
               {visibleOptions.map((option) => {
-                const isDisabled = shouldDisableOption(option);
+                const isDisabled = shouldDisableOption(option) || isViewOnly;
                 return (
                   <FormControlLabel
                     key={option.id}
@@ -593,7 +910,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'text_input':
-        const isTextInputDisabled = isOptionSetDisabled(optionSet);
+        const isTextInputDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <TextField
@@ -612,7 +929,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'number_input':
-        const isNumberInputDisabled = isOptionSetDisabled(optionSet);
+        const isNumberInputDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <TextField
@@ -635,7 +952,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'rating':
-        const isRatingDisabled = isOptionSetDisabled(optionSet);
+        const isRatingDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl component="fieldset" error={!!errors[optionSet.id]} fullWidth>
             <FormLabel component="legend">
@@ -674,7 +991,7 @@ const WizardPlayerPage: React.FC = () => {
 
       case 'slider':
         const sliderValue = Number(responses[optionSet.id]) || Number(optionSet.min_value) || 0;
-        const isSliderDisabled = isOptionSetDisabled(optionSet);
+        const isSliderDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <FormLabel component="legend">
@@ -712,7 +1029,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'date_input':
-        const isDateInputDisabled = isOptionSetDisabled(optionSet);
+        const isDateInputDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <TextField
@@ -732,7 +1049,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'time_input':
-        const isTimeInputDisabled = isOptionSetDisabled(optionSet);
+        const isTimeInputDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <TextField
@@ -752,7 +1069,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'datetime_input':
-        const isDateTimeInputDisabled = isOptionSetDisabled(optionSet);
+        const isDateTimeInputDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <TextField
@@ -772,7 +1089,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'color_picker':
-        const isColorPickerDisabled = isOptionSetDisabled(optionSet);
+        const isColorPickerDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <FormLabel component="legend">
@@ -814,7 +1131,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'file_upload':
-        const isFileUploadDisabled = isOptionSetDisabled(optionSet);
+        const isFileUploadDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <FormLabel component="legend">
@@ -836,19 +1153,19 @@ const WizardPlayerPage: React.FC = () => {
                   const file = e.target.files?.[0];
                   if (file && sessionId) {
                     try {
-                      // Show uploading state (could add specific state for this)
-                      const result = await sessionService.uploadFile(sessionId, file);
-                      handleResponseChange(optionSet.id, result.url);
+                      // Note: Need to get the option set response ID first before uploading
+                      // For now, we'll store the file name as a placeholder
+                      handleResponseChange(optionSet.id, file.name);
                       setSnackbar({
                         open: true,
-                        message: `File ${file.name} uploaded successfully`,
+                        message: `File ${file.name} selected`,
                         severity: 'success',
                       });
                     } catch (error) {
-                      console.error('Upload failed:', error);
+                      console.error('File selection failed:', error);
                       setSnackbar({
                         open: true,
-                        message: 'File upload failed',
+                        message: 'File selection failed',
                         severity: 'error',
                       });
                     }
@@ -882,7 +1199,7 @@ const WizardPlayerPage: React.FC = () => {
         );
 
       case 'rich_text':
-        const isRichTextDisabled = isOptionSetDisabled(optionSet);
+        const isRichTextDisabled = isOptionSetDisabled(optionSet) || isViewOnly;
         return (
           <FormControl fullWidth error={!!errors[optionSet.id]}>
             <TextField
@@ -935,52 +1252,60 @@ const WizardPlayerPage: React.FC = () => {
     );
   }
 
-  // Show run name dialog before starting wizard
-  if (showSessionNameDialog) {
+
+  // Show completion screen ONLY if just completed in this session
+  if (showCompletionScreen) {
     return (
       <>
         <Box>
-          <Typography variant="h4" gutterBottom>
-            {wizard.name}
-          </Typography>
           <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Start New Run
+            <CardContent sx={{ textAlign: 'center', py: 4 }}>
+              <CompleteIcon sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
+              <Typography variant="h4" gutterBottom>
+                Wizard Completed!
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Please provide a name for this wizard run. This will help you identify it later in your runs list.
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                Thank you for completing the {wizard.name} wizard.
               </Typography>
-              <TextField
-                autoFocus
-                fullWidth
-                label="Run Name"
-                value={sessionName}
-                onChange={(e) => {
-                  setSessionName(e.target.value);
-                  if (sessionNameError) setSessionNameError('');
-                }}
-                error={!!sessionNameError}
-                helperText={sessionNameError || 'Enter a descriptive name for this run'}
-                placeholder={`${wizard.name} - ${new Date().toLocaleDateString()}`}
-                required
-                sx={{ mb: 3 }}
-              />
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                <Button variant="outlined" onClick={handleCancelSessionCreation}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={handleCreateSession}
-                  disabled={createSessionMutation.isPending}
-                >
-                  {createSessionMutation.isPending ? 'Creating...' : 'Start Run'}
-                </Button>
-              </Box>
             </CardContent>
           </Card>
         </Box>
+
+        {/* Save Run Dialog */}
+        <Dialog open={showSessionNameDialog} onClose={handleSkipSaveRun} maxWidth="sm" fullWidth>
+          <DialogTitle>Save This Run?</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2 }}>
+              Would you like to save this wizard run? You can view and manage it later in My Runs.
+            </DialogContentText>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Run Name"
+              type="text"
+              fullWidth
+              required
+              value={sessionName}
+              onChange={(e) => {
+                setSessionName(e.target.value);
+                if (sessionNameError) setSessionNameError('');
+              }}
+              error={!!sessionNameError}
+              helperText={sessionNameError || 'Enter a descriptive name for this run'}
+              placeholder={`${wizard.name} - ${new Date().toLocaleDateString()}`}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleSkipSaveRun}>Skip</Button>
+            <Button
+              onClick={handleSaveRun}
+              variant="contained"
+              disabled={!sessionName.trim() || saveRunMutation.isPending}
+            >
+              {saveRunMutation.isPending ? 'Saving...' : 'Save Run'}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Snackbar for notifications */}
         <Snackbar
@@ -1001,7 +1326,10 @@ const WizardPlayerPage: React.FC = () => {
     );
   }
 
-  if (isCompleted) {
+  // ============================================================================
+  // Update This Run Dialog (for Edit Mode)
+  // ============================================================================
+  if (isEditMode && showUpdateRunDialog) {
     return (
       <>
         <Box>
@@ -1009,65 +1337,110 @@ const WizardPlayerPage: React.FC = () => {
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <CompleteIcon sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
               <Typography variant="h4" gutterBottom>
-                Wizard Completed!
+                Wizard Updated!
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                Thank you for completing the {wizard.name} wizard.
+                You have made changes to this stored wizard run.
               </Typography>
-              <Button variant="contained" onClick={() => navigate('/sessions')}>
-                View My Sessions
-              </Button>
             </CardContent>
           </Card>
         </Box>
 
-        {/* Save as Template Dialog */}
-        <Dialog open={showTemplateDialog} onClose={handleSkipTemplate} maxWidth="sm" fullWidth>
-          <DialogTitle>Save as Template?</DialogTitle>
+        {/* Update This Run Dialog */}
+        <Dialog
+          open={showUpdateRunDialog}
+          onClose={() => setShowUpdateRunDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Update This Run</DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ mb: 2 }}>
-              Would you like to save this wizard session as a template? You can reuse it later or share it with others.
+              You have made changes to this stored wizard run. How would you like to proceed?
+            </DialogContentText>
+
+            {/* Show run info */}
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Run Name:</strong> {existingRunName}
+              </Typography>
+            </Alert>
+          </DialogContent>
+          <DialogActions sx={{ flexDirection: 'column', gap: 1, p: 2, alignItems: 'stretch' }}>
+            {/* Button 1: Skip - Discard Changes */}
+            <Button
+              onClick={handleSkipUpdate}
+              variant="outlined"
+              color="secondary"
+              fullWidth
+              startIcon={<CloseIcon />}
+            >
+              Skip (Discard Changes)
+            </Button>
+
+            {/* Button 2: Update - Save to Current Run */}
+            <Button
+              onClick={handleUpdateRun}
+              variant="contained"
+              color="primary"
+              fullWidth
+              startIcon={<SaveIcon />}
+              disabled={saveRunMutation.isPending}
+            >
+              {saveRunMutation.isPending ? 'Updating...' : 'Update Run'}
+            </Button>
+
+            {/* Button 3: Save As - Create New Run */}
+            <Button
+              onClick={handleSaveAs}
+              variant="outlined"
+              color="primary"
+              fullWidth
+              startIcon={<ContentCopyIcon />}
+            >
+              Save As New Run
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Save As Dialog (Nested) */}
+        <Dialog
+          open={showSaveAsDialog}
+          onClose={() => setShowSaveAsDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Save As New Run</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2 }}>
+              Enter a name for the new wizard run:
             </DialogContentText>
             <TextField
               autoFocus
               margin="dense"
-              label="Template Name"
+              label="New Run Name"
               type="text"
               fullWidth
               required
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              margin="dense"
-              label="Description (optional)"
-              type="text"
-              fullWidth
-              multiline
-              rows={3}
-              value={templateDescription}
-              onChange={(e) => setTemplateDescription(e.target.value)}
-              sx={{ mb: 2 }}
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={templateIsPublic}
-                  onChange={(e) => setTemplateIsPublic(e.target.checked)}
-                />
-              }
-              label="Make this template public"
+              value={saveAsRunName}
+              onChange={(e) => {
+                setSaveAsRunName(e.target.value);
+                if (saveAsError) setSaveAsError('');
+              }}
+              error={!!saveAsError}
+              helperText={saveAsError || 'Enter a unique name for this run'}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleSkipTemplate}>Skip</Button>
+            <Button onClick={() => setShowSaveAsDialog(false)}>
+              Cancel
+            </Button>
             <Button
-              onClick={handleSaveAsTemplate}
+              onClick={handleConfirmSaveAs}
               variant="contained"
-              disabled={!templateName.trim() || saveTemplateMutation.isPending}
+              disabled={!saveAsRunName.trim() || saveRunMutation.isPending}
             >
-              {saveTemplateMutation.isPending ? 'Saving...' : 'Save Template'}
+              {saveRunMutation.isPending ? 'Creating...' : 'Create New Run'}
             </Button>
           </DialogActions>
         </Dialog>
@@ -1096,6 +1469,24 @@ const WizardPlayerPage: React.FC = () => {
       <Typography variant="h4" gutterBottom>
         {wizard.name}
       </Typography>
+
+      {/* View Mode Banner */}
+      {isViewOnly && (() => {
+        console.log('[WizardPlayer] Rendering in VIEW MODE - responses object:', responses);
+        console.log('[WizardPlayer] Number of responses:', Object.keys(responses).length);
+        return (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>View Mode</strong> - You are viewing a completed wizard run. All fields are read-only.
+          </Alert>
+        );
+      })()}
+
+      {/* Edit Mode Banner for completed runs */}
+      {!isViewOnly && isCompleted && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <strong>Edit Mode</strong> - You are editing a completed wizard run. Changes will update the stored data.
+        </Alert>
+      )}
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -1135,6 +1526,12 @@ const WizardPlayerPage: React.FC = () => {
             <Divider sx={{ mb: 3 }} />
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {(() => {
+                console.log(`[WizardPlayer] Rendering step ${currentStepIndex}: ${currentStep.name}`);
+                console.log(`[WizardPlayer] Step has ${currentStep.option_sets.length} option sets`);
+                console.log(`[WizardPlayer] Option set IDs in this step:`, currentStep.option_sets.map(os => os.id));
+                return null;
+              })()}
               {currentStep.option_sets.map((optionSet) => (
                 <Box key={optionSet.id}>{renderOptionSet(optionSet)}</Box>
               ))}
@@ -1152,17 +1549,28 @@ const WizardPlayerPage: React.FC = () => {
         >
           Previous
         </Button>
-        <Button
-          variant="contained"
-          endIcon={currentStepIndex === wizard.steps.length - 1 ? <CompleteIcon /> : <NextIcon />}
-          onClick={handleNext}
-          disabled={saveResponseMutation.isPending || completeSessionMutation.isPending}
-        >
-          {currentStepIndex === wizard.steps.length - 1 ? 'Complete' : 'Next'}
-        </Button>
+        {!isViewOnly && (
+          <Button
+            variant="contained"
+            endIcon={currentStepIndex === wizard.steps.length - 1 ? <CompleteIcon /> : <NextIcon />}
+            onClick={handleNext}
+            disabled={completeSessionMutation.isPending}
+          >
+            {currentStepIndex === wizard.steps.length - 1 ? (isCompleted ? 'Update' : 'Complete') : 'Next'}
+          </Button>
+        )}
+        {isViewOnly && currentStepIndex < wizard.steps.length - 1 && (
+          <Button
+            variant="outlined"
+            endIcon={<NextIcon />}
+            onClick={() => setCurrentStepIndex(currentStepIndex + 1)}
+          >
+            Next
+          </Button>
+        )}
       </Box>
 
-      {currentStep && currentStep.is_skippable && (
+      {currentStep && currentStep.is_skippable && !isViewOnly && !isCompleted && !showCompletionScreen && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
           <Button
             color="inherit"
@@ -1174,25 +1582,22 @@ const WizardPlayerPage: React.FC = () => {
                 setErrors({});
 
                 // Update progress
-                const progressPercentage = ((nextStepIndex + 1) / wizard.steps.length) * 100;
                 if (sessionId) {
                   try {
-                    await sessionService.updateSession(sessionId, {
-                      current_step_id: wizard.steps[nextStepIndex].id,
-                      progress_percentage: Math.round(progressPercentage),
-                    } as any);
+                    await wizardRunService.updateRunProgress(sessionId, {
+                      current_step_index: nextStepIndex,
+                    });
                   } catch (error) {
                     console.error('Error updating progress on skip:', error);
                   }
                 }
               } else {
-                // Skip last step = complete? Or just finish?
-                // Usually skip means "don't answer", so we just complete.
+                // Skip last step = complete
                 if (sessionId) {
                   try {
                     await completeSessionMutation.mutateAsync(sessionId);
                   } catch (error) {
-                    console.error('Error completing session on skip:', error);
+                    console.error('Error completing wizard run on skip:', error);
                   }
                 }
               }

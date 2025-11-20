@@ -355,6 +355,31 @@ def update_step_response(
     return wizard_run_step_response_crud.update(db, db_obj=step_response, obj_in=step_response_in)
 
 
+@router.delete("/{run_id}/responses", status_code=status.HTTP_204_NO_CONTENT)
+def clear_all_responses(
+    run_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user),
+):
+    """Delete all step and option set responses for a wizard run (for updates)."""
+    run = wizard_run_crud.get(db, run_id=run_id)
+    if not run:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wizard run not found"
+        )
+
+    # Get all step responses for this run
+    step_responses = wizard_run_step_response_crud.get_multi_by_run(db, run_id=run_id)
+
+    # Delete all step responses (cascade will delete option set responses)
+    for step_response in step_responses:
+        db.delete(step_response)
+
+    db.commit()
+    return None
+
+
 # ============================================================================
 # Option Set Response Endpoints
 # ============================================================================
