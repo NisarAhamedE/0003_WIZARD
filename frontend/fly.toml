@@ -1,0 +1,31 @@
+# Fly.io Configuration for Frontend
+# Deploy with: fly deploy
+
+app = "wizard-frontend"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Update this with your actual backend URL after deploying backend
+  REACT_APP_API_URL = "https://wizard-backend.fly.dev/api/v1"
+
+[http_service]
+  internal_port = 80
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
