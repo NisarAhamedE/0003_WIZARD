@@ -1,6 +1,5 @@
 # Multi-Wizard Platform - Root Dockerfile for Railway
 # This builds the BACKEND service
-# For frontend, create a separate Railway service with Root Directory = "frontend"
 
 # Stage 1: Builder
 FROM python:3.11-slim as builder
@@ -38,8 +37,7 @@ ENV PATH=/root/.local/bin:$PATH
 
 # Copy backend application code
 COPY backend/app ./app
-COPY backend/alembic ./alembic
-COPY backend/alembic.ini .
+COPY backend/migrations ./migrations
 
 # Create uploads directory
 RUN mkdir -p /app/uploads
