@@ -6,6 +6,26 @@ Fly.io uses your existing Dockerfiles and runs globally!
 
 ---
 
+## ⚠️ IMPORTANT: Directory Matters!
+
+**You MUST run `fly deploy` from inside each service folder:**
+
+```bash
+# ❌ WRONG - From root directory
+cd c:\000_PROJECT\0003_WIZARD
+fly deploy  # ERROR: Cannot find Dockerfile!
+
+# ✅ CORRECT - From backend folder
+cd c:\000_PROJECT\0003_WIZARD\backend
+fly deploy  # Works! Finds backend/Dockerfile
+
+# ✅ CORRECT - From frontend folder
+cd c:\000_PROJECT\0003_WIZARD\frontend
+fly deploy  # Works! Finds frontend/Dockerfile
+```
+
+---
+
 ## 📋 Prerequisites
 
 1. GitHub account with your repo pushed ✅
