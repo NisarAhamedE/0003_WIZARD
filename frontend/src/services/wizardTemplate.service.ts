@@ -11,7 +11,6 @@ import {
   WizardTemplateListResponse,
   WizardTemplateRating,
   WizardTemplateRatingCreate,
-  WizardTemplateRatingUpdate,
   WizardTemplateStats,
   WizardTemplateCloneRequest,
   WizardTemplateCloneResponse,

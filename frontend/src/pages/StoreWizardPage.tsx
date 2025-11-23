@@ -30,7 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { wizardRunService } from '../services';
-import { WizardRun, WizardRunShare } from '../types';
+import { WizardRun } from '../types';
 
 const StoreWizardPage: React.FC = () => {
   const navigate = useNavigate();

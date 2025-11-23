@@ -39,7 +39,6 @@ import {
   Warning as WarningIcon,
   ContentCopy as CloneIcon,
   NewReleases as VersionIcon,
-  Archive as ArchiveIcon,
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { wizardService } from '../../services/wizard.service';

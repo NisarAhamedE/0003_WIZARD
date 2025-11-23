@@ -45,7 +45,8 @@ const TemplateGalleryPage: React.FC = () => {
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [viewMode, setViewMode] = useState<'all' | 'popular' | 'top-rated'>('all');
   const [selectedTemplate, setSelectedTemplate] = useState<WizardTemplate | null>(null);
-  const [templateStats, setTemplateStats] = useState<WizardTemplateStats | null>(null);
+  const [_templateStats, setTemplateStats] = useState<WizardTemplateStats | null>(null);
+  void _templateStats; // Keep for future use
   const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
   const [wizardName, setWizardName] = useState('');
   const [wizardDescription, setWizardDescription] = useState('');
@@ -109,7 +110,7 @@ const TemplateGalleryPage: React.FC = () => {
 
     try {
       setCloning(true);
-      const result = await wizardTemplateService.cloneTemplate({
+      await wizardTemplateService.cloneTemplate({
         template_id: selectedTemplate.id,
         wizard_name: wizardName.trim(),
         wizard_description: wizardDescription.trim() || undefined,
