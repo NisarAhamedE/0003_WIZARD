@@ -9,7 +9,10 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.en
 
 
 class Settings(BaseSettings):
-    # Database - using existing .env format
+    # Database - Railway provides DATABASE_URL, local dev uses individual vars
+    DATABASE_URL: str = ""  # Railway sets this automatically
+
+    # Local development fallback
     DB_HOST: str = "127.0.0.1"
     DB_PORT: int = 5432
     DB_NAME: str = "wizarddb"
@@ -17,8 +20,11 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = "@dmin123"
 
     @property
-    def DATABASE_URL(self) -> str:
-        # URL-encode the password to handle special characters like @
+    def database_url(self) -> str:
+        """Get database URL - use DATABASE_URL if set (Railway), otherwise build from parts."""
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        # Fallback for local development
         encoded_password = quote_plus(self.DB_PASSWORD)
         return f"postgresql://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
