@@ -16,7 +16,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,6 +64,7 @@ async def startup_event():
     print(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     print(f"Environment: {settings.ENVIRONMENT}")
     print(f"Debug mode: {settings.DEBUG}")
+    print(f"CORS Origins: {settings.cors_origins_list}")
     print(f"API documentation available at /api/docs")
 
 

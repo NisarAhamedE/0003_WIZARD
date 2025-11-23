@@ -37,13 +37,17 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
 
-    # CORS Settings - add production URLs or set CORS_ORIGINS env var
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://desirable-essence-production-6e00.up.railway.app"
-    ]
+    # CORS Settings - set CORS_ORIGINS env var as comma-separated list
+    # e.g., CORS_ORIGINS="http://localhost:3000,https://your-frontend.railway.app"
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://desirable-essence-production-6e00.up.railway.app"
     CORS_ALLOW_CREDENTIALS: bool = True
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS_ORIGINS string into a list."""
+        if isinstance(self.CORS_ORIGINS, list):
+            return self.CORS_ORIGINS
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     # File Upload Settings
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB
