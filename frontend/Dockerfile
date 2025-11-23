@@ -24,8 +24,8 @@ FROM nginx:alpine
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built React app from builder
-COPY --from=builder /app/build /usr/share/nginx/html
+# Copy built React app from builder (Vite outputs to dist/)
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy environment configuration script
 COPY env.sh /docker-entrypoint.d/env.sh
