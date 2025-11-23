@@ -37,8 +37,12 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
 
-    # CORS Settings
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # CORS Settings - add production URLs or set CORS_ORIGINS env var
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://desirable-essence-production-6e00.up.railway.app"
+    ]
     CORS_ALLOW_CREDENTIALS: bool = True
 
     # File Upload Settings
