@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.v1 import auth, users, wizards, analytics, wizard_templates, wizard_runs
+from app.database import init_db
 
 # Create FastAPI application
 app = FastAPI(
@@ -66,6 +67,11 @@ async def startup_event():
     print(f"Debug mode: {settings.DEBUG}")
     print(f"CORS Origins: {settings.cors_origins_list}")
     print(f"API documentation available at /api/docs")
+
+    # Initialize database tables
+    print("Initializing database tables...")
+    init_db()
+    print("Database tables initialized successfully")
 
 
 @app.on_event("shutdown")
