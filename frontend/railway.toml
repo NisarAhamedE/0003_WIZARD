@@ -1,6 +1,8 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+# Pass VITE_API_URL as build argument - set this variable in Railway dashboard
+buildArgs = ["VITE_API_URL"]
 
 [deploy]
 healthcheckPath = "/health"

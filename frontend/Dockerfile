@@ -15,7 +15,11 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build production bundle
+# Build argument for API URL (passed from Railway)
+ARG VITE_API_URL=http://localhost:8000/api/v1
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build production bundle with the API URL baked in
 RUN npm run build
 
 # Stage 2: Serve with Nginx
