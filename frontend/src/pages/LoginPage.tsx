@@ -12,7 +12,6 @@ import {
   InputAdornment,
   IconButton,
   Divider,
-  Paper,
   Collapse,
 } from '@mui/material';
 import {
@@ -25,6 +24,7 @@ import {
   WifiOff,
   LockOutlined,
   ReportProblem,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 
@@ -309,10 +309,33 @@ const LoginPage: React.FC = () => {
         }}
         disabled={loading}
         error={error?.type === 'validation' && error.title.includes('Username')}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            background: 'rgba(15, 23, 42, 0.5)',
+            '& fieldset': {
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+            },
+            '&:hover fieldset': {
+              borderColor: 'rgba(255, 255, 255, 0.25)',
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: '#00D9FF',
+            },
+          },
+          '& .MuiInputLabel-root': {
+            color: 'rgba(156, 163, 175, 0.8)',
+            '&.Mui-focused': {
+              color: '#00D9FF',
+            },
+          },
+          '& .MuiOutlinedInput-input': {
+            color: '#F9FAFB',
+          },
+        }}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <Person color={error?.type === 'validation' && error.title.includes('Username') ? 'error' : 'action'} />
+              <Person sx={{ color: 'rgba(156, 163, 175, 0.7)' }} />
             </InputAdornment>
           ),
         }}
@@ -334,10 +357,33 @@ const LoginPage: React.FC = () => {
         }}
         disabled={loading}
         error={error?.type === 'validation' && error.title.includes('Password')}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            background: 'rgba(15, 23, 42, 0.5)',
+            '& fieldset': {
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+            },
+            '&:hover fieldset': {
+              borderColor: 'rgba(255, 255, 255, 0.25)',
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: '#00D9FF',
+            },
+          },
+          '& .MuiInputLabel-root': {
+            color: 'rgba(156, 163, 175, 0.8)',
+            '&.Mui-focused': {
+              color: '#00D9FF',
+            },
+          },
+          '& .MuiOutlinedInput-input': {
+            color: '#F9FAFB',
+          },
+        }}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <Lock color={error?.type === 'validation' && error.title.includes('Password') ? 'error' : 'action'} />
+              <Lock sx={{ color: 'rgba(156, 163, 175, 0.7)' }} />
             </InputAdornment>
           ),
           endAdornment: (
@@ -346,6 +392,7 @@ const LoginPage: React.FC = () => {
                 onClick={() => setShowPassword(!showPassword)}
                 edge="end"
                 disabled={loading}
+                sx={{ color: 'rgba(156, 163, 175, 0.7)' }}
               >
                 {showPassword ? <VisibilityOff /> : <Visibility />}
               </IconButton>
@@ -392,14 +439,93 @@ const LoginPage: React.FC = () => {
         </Typography>
       </Box>
 
-      <Paper variant="outlined" sx={{ mt: 3, p: 2, bgcolor: 'grey.50' }}>
-        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-          Demo Credentials:
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Username: <strong>admin</strong> | Password: <strong>Admin123!</strong>
-        </Typography>
-      </Paper>
+      <Box
+        sx={{
+          mt: 3,
+          p: 2.5,
+          borderRadius: 2,
+          background: 'linear-gradient(135deg, rgba(0, 217, 255, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)',
+          border: '1px solid rgba(0, 217, 255, 0.2)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Decorative glow */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -20,
+            right: -20,
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0, 217, 255, 0.15) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          <InfoIcon sx={{ fontSize: 18, color: '#00D9FF' }} />
+          <Typography
+            variant="caption"
+            sx={{
+              color: '#00D9FF',
+              fontWeight: 600,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Demo Credentials
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1, sm: 3 },
+          }}
+        >
+          <Box>
+            <Typography variant="caption" sx={{ color: 'rgba(156, 163, 175, 0.8)' }}>
+              Username
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#F9FAFB',
+                fontWeight: 600,
+                fontFamily: 'monospace',
+                background: 'rgba(0, 0, 0, 0.2)',
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                mt: 0.5,
+              }}
+            >
+              admin
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" sx={{ color: 'rgba(156, 163, 175, 0.8)' }}>
+              Password
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#F9FAFB',
+                fontWeight: 600,
+                fontFamily: 'monospace',
+                background: 'rgba(0, 0, 0, 0.2)',
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                mt: 0.5,
+              }}
+            >
+              Admin123!
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 };

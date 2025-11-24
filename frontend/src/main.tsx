@@ -7,6 +7,7 @@ import { SnackbarProvider } from 'notistack';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import theme from './theme';
+import './index.css';
 
 // Create React Query client
 const queryClient = new QueryClient({

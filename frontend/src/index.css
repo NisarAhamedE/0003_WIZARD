@@ -1,0 +1,204 @@
+/* Inter Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Global Reset and Base Styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  background: linear-gradient(135deg, #0A0F1C 0%, #0D1321 50%, #111827 100%);
+  min-height: 100vh;
+  color: #F9FAFB;
+}
+
+/* Custom Scrollbar for Dark Theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.4) 0%, rgba(168, 85, 247, 0.4) 100%);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.6) 0%, rgba(168, 85, 247, 0.6) 100%);
+  background-clip: padding-box;
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 217, 255, 0.4) rgba(255, 255, 255, 0.05);
+}
+
+/* Selection Color */
+::selection {
+  background: rgba(0, 217, 255, 0.3);
+  color: #F9FAFB;
+}
+
+::-moz-selection {
+  background: rgba(0, 217, 255, 0.3);
+  color: #F9FAFB;
+}
+
+/* Focus Outline for Accessibility */
+:focus-visible {
+  outline: 2px solid #00D9FF;
+  outline-offset: 2px;
+}
+
+/* Remove default button styles */
+button {
+  font-family: inherit;
+}
+
+/* Link Styles */
+a {
+  color: #00D9FF;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #5CE1FF;
+}
+
+/* Smooth transitions for theme elements */
+.MuiPaper-root,
+.MuiCard-root,
+.MuiButton-root,
+.MuiListItemButton-root {
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* Glassmorphism utility class */
+.glass {
+  background: rgba(17, 24, 39, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, #00D9FF 0%, #A855F7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glow effects */
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.4);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Utility animation classes */
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+/* Loading shimmer effect */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Override MUI specific dark mode issues */
+.MuiTableCell-root {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.MuiDivider-root {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Ensure proper input placeholder colors */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(156, 163, 175, 0.7);
+}
+
+/* Chart.js dark mode compatibility */
+.chart-container canvas {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
