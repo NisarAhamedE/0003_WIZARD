@@ -71,7 +71,7 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleString();
   };
