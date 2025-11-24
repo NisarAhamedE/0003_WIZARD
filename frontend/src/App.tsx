@@ -8,12 +8,17 @@ import AuthLayout from './components/common/AuthLayout';
 // Pages
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import WizardBrowserPage from './pages/WizardBrowserPage';
 import WizardPlayerPage from './pages/WizardPlayerPage';
 import TemplateGalleryPage from './pages/TemplateGalleryPage';
 import MyRunsPage from './pages/MyRunsPage';
 import StoreWizardPage from './pages/StoreWizardPage';
+import ProfilePage from './pages/ProfilePage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
+import RolesPage from './pages/RolesPage';
+import PrivilegesPage from './pages/PrivilegesPage';
 import WizardBuilderPage from './pages/admin/WizardBuilderPage';
 import AnalyticsDashboardPage from './pages/admin/AnalyticsDashboardPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
@@ -40,6 +45,7 @@ function App() {
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       </Route>
 
       {/* Protected routes */}
@@ -89,6 +95,38 @@ function App() {
           element={
             <ProtectedRoute>
               <StoreWizardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/roles"
+          element={
+            <ProtectedRoute>
+              <RolesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/privileges"
+          element={
+            <ProtectedRoute>
+              <PrivilegesPage />
             </ProtectedRoute>
           }
         />

@@ -29,6 +29,9 @@ import {
   LibraryBooks as TemplateIcon,
   DirectionsRun as RunIcon,
   Storage as StoreIcon,
+  AccountCircle,
+  Lock as LockIcon,
+  Security as SecurityIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -134,6 +137,19 @@ const MainLayout: React.FC = () => {
             <MenuItem disabled>
               <PersonIcon sx={{ mr: 1 }} />
               {user?.full_name || user?.username}
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>
+              <AccountCircle sx={{ mr: 1 }} />
+              My Profile
+            </MenuItem>
+            <MenuItem onClick={() => { handleMenuClose(); navigate('/change-password'); }}>
+              <LockIcon sx={{ mr: 1 }} />
+              Change Password
+            </MenuItem>
+            <MenuItem onClick={() => { handleMenuClose(); navigate('/roles'); }}>
+              <SecurityIcon sx={{ mr: 1 }} />
+              Roles & Privileges
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>

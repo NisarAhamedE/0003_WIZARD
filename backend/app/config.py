@@ -4,8 +4,8 @@ import os
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
-# Load .env from parent directory
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+# Load .env from parent directory (override=True to ensure .env values take precedence)
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'), override=True)
 
 
 class Settings(BaseSettings):
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     # CORS Settings - set CORS_ORIGINS env var as comma-separated list
     # e.g., CORS_ORIGINS="http://localhost:3000,https://your-frontend.railway.app"
-    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://desirable-essence-production-6e00.up.railway.app"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://desirable-essence-production-6e00.up.railway.app"
     CORS_ALLOW_CREDENTIALS: bool = True
 
     @property
