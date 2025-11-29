@@ -62,10 +62,13 @@ def health_check():
 @app.on_event("startup")
 async def startup_event():
     """Application startup event."""
+    import os
     print(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     print(f"Environment: {settings.ENVIRONMENT}")
     print(f"Debug mode: {settings.DEBUG}")
     print(f"CORS Origins: {settings.cors_origins_list}")
+    print(f"DATABASE_URL env var set: {bool(os.environ.get('DATABASE_URL'))}")
+    print(f"Using database: {settings.database_url[:50]}..." if len(settings.database_url) > 50 else f"Using database: {settings.database_url}")
     print(f"API documentation available at /api/docs")
 
     # Initialize database tables

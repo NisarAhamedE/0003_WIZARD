@@ -1,16 +1,18 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 import os
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
-# Load .env from parent directory (override=True to ensure .env values take precedence)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'), override=True)
+# Only load .env file if it exists (local development)
+env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
+if os.path.exists(env_path):
+    load_dotenv(dotenv_path=env_path, override=False)  # Don't override system env vars
 
 
 class Settings(BaseSettings):
-    # Database - Railway provides DATABASE_URL, local dev uses individual vars
-    DATABASE_URL: str = ""  # Railway sets this automatically
+    # Database - Fly.io/Railway provides DATABASE_URL, local dev uses individual vars
+    DATABASE_URL: Optional[str] = None  # Fly.io/Railway sets this automatically
 
     # Local development fallback
     DB_HOST: str = "127.0.0.1"
@@ -22,12 +24,15 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """Get database URL - use DATABASE_URL if set (Fly.io/Railway), otherwise build from parts."""
-        if self.DATABASE_URL:
+        # First check environment variable directly (Fly.io sets this)
+        env_database_url = os.environ.get("DATABASE_URL")
+        db_url = env_database_url or self.DATABASE_URL
+
+        if db_url:
             # Fly.io/Heroku use postgres:// but SQLAlchemy requires postgresql://
-            url = self.DATABASE_URL
-            if url.startswith("postgres://"):
-                url = url.replace("postgres://", "postgresql://", 1)
-            return url
+            if db_url.startswith("postgres://"):
+                db_url = db_url.replace("postgres://", "postgresql://", 1)
+            return db_url
         # Fallback for local development
         encoded_password = quote_plus(self.DB_PASSWORD)
         return f"postgresql://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
