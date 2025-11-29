@@ -30,8 +30,10 @@ This guide covers deploying the Multi-Wizard Platform to Fly.io.
 fly postgres create --name wizard-db --region iad
 
 # After creation, note the connection string displayed
-# It will look like: postgres://postgres:PASSWORD@wizard-db.flycast:5432/wizard_db
+# It will look like: postgres://postgres:PASSWORD@wizard-db.flycast:5432/postgres
 ```
+
+**Note**: Database tables are automatically created on app startup via SQLAlchemy's `init_db()`.
 
 ## Step 2: Deploy Backend
 

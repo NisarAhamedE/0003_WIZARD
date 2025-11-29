@@ -6,16 +6,16 @@ FROM node:18-alpine as builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files first for better caching
+COPY package.json package-lock.json* ./
 
 # Install ALL dependencies (including devDependencies needed for build)
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
 
-# Build argument for API URL (passed from Railway)
+# Build argument for API URL (passed from Fly.io)
 ARG VITE_API_URL=http://localhost:8000/api/v1
 ENV VITE_API_URL=$VITE_API_URL
 
@@ -31,16 +31,12 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built React app from builder (Vite outputs to dist/)
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy environment configuration script
-COPY env.sh /docker-entrypoint.d/env.sh
-RUN chmod +x /docker-entrypoint.d/env.sh
-
 # Expose port 80
 EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
 
-# Start nginx (using default nginx entrypoint)
+# Start nginx
 CMD ["nginx", "-g", "daemon off;"]

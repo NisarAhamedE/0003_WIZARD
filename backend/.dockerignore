@@ -7,6 +7,7 @@ __pycache__/
 env/
 venv/
 ENV/
+.venv/
 build/
 develop-eggs/
 dist/
@@ -28,6 +29,7 @@ wheels/
 .coverage
 htmlcov/
 .tox/
+tests/
 
 # IDE
 .vscode/
@@ -40,6 +42,7 @@ htmlcov/
 .env
 .env.local
 .env.*.local
+*.env
 
 # Database
 *.db
@@ -58,9 +61,15 @@ Thumbs.db
 .git/
 .gitignore
 
+# Docker (don't include in image)
+docker-compose*.yml
+
 # Documentation
 *.md
 docs/
 
-# Alembic (keep migrations)
+# Uploads (created at runtime)
+uploads/
+
+# Keep alembic migrations
 !alembic/

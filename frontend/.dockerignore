@@ -8,7 +8,7 @@ yarn-error.log*
 coverage/
 .nyc_output/
 
-# Production
+# Build output (generated inside Docker)
 build/
 dist/
 
@@ -34,9 +34,14 @@ Thumbs.db
 .git/
 .gitignore
 
+# Docker (don't include in image)
+docker-compose*.yml
+
 # Documentation
 *.md
-README.md
 
 # Misc
 .eslintcache
+
+# Fly.io config (not needed in image)
+fly.toml
