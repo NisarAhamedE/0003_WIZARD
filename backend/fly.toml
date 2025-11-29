@@ -1,7 +1,7 @@
 # Fly.io Configuration for Backend
-# Deploy with: fly deploy
+# Deploy with: cd backend && fly deploy
 
-app = "wizard-backend"
+app = "0003-wizard-dyttbg"
 primary_region = "iad"
 
 [build]
@@ -11,25 +11,23 @@ primary_region = "iad"
   ENVIRONMENT = "production"
   ALGORITHM = "HS256"
   ACCESS_TOKEN_EXPIRE_MINUTES = "30"
+  DEBUG = "false"
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
 
   [[http_service.checks]]
-    grace_period = "10s"
+    grace_period = "30s"
     interval = "30s"
     method = "GET"
-    timeout = "5s"
+    timeout = "10s"
     path = "/"
 
 [[vm]]
+  memory = "1gb"
   cpu_kind = "shared"
   cpus = 1
-  memory_mb = 1024
-
-[deploy]
-  release_command = "alembic upgrade head"

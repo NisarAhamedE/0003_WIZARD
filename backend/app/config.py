@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     # CORS Settings - set CORS_ORIGINS env var as comma-separated list
-    # e.g., CORS_ORIGINS="http://localhost:3000,https://your-frontend.railway.app"
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://desirable-essence-production-6e00.up.railway.app"
+    # e.g., CORS_ORIGINS="http://localhost:3000,https://your-frontend.fly.dev"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://0003-wizard-frontend.fly.dev,https://0003-wizard-dyttbg.fly.dev"
     CORS_ALLOW_CREDENTIALS: bool = True
 
     @property
