@@ -21,9 +21,13 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """Get database URL - use DATABASE_URL if set (Railway), otherwise build from parts."""
+        """Get database URL - use DATABASE_URL if set (Fly.io/Railway), otherwise build from parts."""
         if self.DATABASE_URL:
-            return self.DATABASE_URL
+            # Fly.io/Heroku use postgres:// but SQLAlchemy requires postgresql://
+            url = self.DATABASE_URL
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql://", 1)
+            return url
         # Fallback for local development
         encoded_password = quote_plus(self.DB_PASSWORD)
         return f"postgresql://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
