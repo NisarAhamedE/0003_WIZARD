@@ -11,7 +11,7 @@ class AnalyticsEvent(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Context
-    session_id = Column(UUID(as_uuid=True), ForeignKey("user_sessions.id", ondelete="SET NULL"))
+    session_id = Column(UUID(as_uuid=True), nullable=True)  # Session tracking (no FK - sessions managed separately)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     wizard_id = Column(UUID(as_uuid=True), ForeignKey("wizards.id", ondelete="SET NULL"))
     step_id = Column(UUID(as_uuid=True), ForeignKey("steps.id", ondelete="SET NULL"))
